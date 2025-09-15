@@ -1,0 +1,31 @@
+{
+  "name": "yt-creator-tools",
+  "version": "2.0.0",
+  "description": "Outils professionnels pour créateurs YouTube",
+  "main": "index.html",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build completed'",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "googleapis": "^126.0.1",
+    "firebase-admin": "^11.11.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/yt-creator-tools"
+  },
+  "keywords": [
+    "youtube",
+    "creator-tools",
+    "thumbnails",
+    "subtitles",
+    "video-metadata"
+  ],
+  "author": "KINGSOFT BUSINESS",
+  "license": "MIT"
+}
