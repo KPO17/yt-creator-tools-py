@@ -1059,6 +1059,7 @@
         }
 
         // MODIFIER la fonction downloadSubtitles pour accepter les comptes Google
+        // Fonction corrigée pour télécharger les sous-titres
         async function downloadSubtitles(format) {
             if (!currentUser) {
                 showError('Connectez-vous pour accéder aux sous-titres');
@@ -1082,7 +1083,9 @@
             try {
                 showLoading(true);
                 
-                // Appeler la fonction Netlify
+                console.log('Téléchargement sous-titres:', { videoId, format });
+                
+                // Appeler la fonction Netlify avec une gestion d'erreur améliorée
                 const response = await fetch('/.netlify/functions/subtitles', {
                     method: 'POST',
                     headers: {
@@ -1091,33 +1094,68 @@
                     body: JSON.stringify({
                         videoId: videoId,
                         format: format,
-                        language: 'fr' // Vous pouvez ajouter une sélection de langue plus tard
+                        language: 'fr'
                     })
                 });
                 
+                console.log('Réponse API:', response.status, response.statusText);
+                
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Erreur lors du téléchargement');
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        errorData = { error: `Erreur HTTP ${response.status}` };
+                    }
+                    
+                    // Messages d'erreur spécifiques
+                    let errorMessage = errorData.error || 'Erreur inconnue';
+                    
+                    switch (response.status) {
+                        case 401:
+                            errorMessage = 'Service temporairement indisponible - Configuration API en cours';
+                            break;
+                        case 403:
+                            errorMessage = 'Limite de quota API atteinte - Réessayez plus tard';
+                            break;
+                        case 404:
+                            errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
+                            break;
+                        case 500:
+                            errorMessage = 'Erreur serveur - Veuillez réessayer';
+                            break;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
                 
-                // Récupérer le contenu
+                // Récupérer le contenu des sous-titres
                 const subtitleContent = await response.text();
                 
+                if (!subtitleContent || subtitleContent.trim().length === 0) {
+                    throw new Error('Contenu des sous-titres vide');
+                }
+                
                 // Créer et télécharger le fichier
-                const blob = new Blob([subtitleContent], { type: 'text/plain' });
+                const blob = new Blob([subtitleContent], { 
+                    type: format === 'srt' ? 'application/x-subrip' : 'text/plain' 
+                });
                 const downloadUrl = URL.createObjectURL(blob);
                 
                 const link = document.createElement('a');
                 link.href = downloadUrl;
                 link.download = `${videoId}_subtitles.${format}`;
+                link.style.display = 'none';
                 
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
                 
                 URL.revokeObjectURL(downloadUrl);
+                
+                // Afficher une pub et un message de succès
                 showAdModal();
-                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés !`);
+                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
                 
             } catch (error) {
                 console.error('Erreur téléchargement sous-titres:', error);
@@ -1125,6 +1163,44 @@
             } finally {
                 showLoading(false);
             }
+        }
+
+        // Fonction utilitaire pour tester la fonction
+        async function testSubtitlesFunction() {
+            try {
+                const response = await fetch('/.netlify/functions/subtitles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up (pour test)
+                        format: 'txt',
+                        language: 'en'
+                    })
+                });
+                
+                console.log('Test API - Status:', response.status);
+                
+                if (response.ok) {
+                    const content = await response.text();
+                    console.log('Test API - Succès:', content.substring(0, 100) + '...');
+                } else {
+                    const error = await response.json();
+                    console.log('Test API - Erreur:', error);
+                }
+            } catch (error) {
+                console.error('Test API - Exception:', error);
+            }
+        }
+
+        // Ajouter un bouton de test (optionnel, pour débugger)
+        function addTestButton() {
+            const testBtn = document.createElement('button');
+            testBtn.textContent = 'Test API';
+            testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:red;color:white;padding:10px;border:none;cursor:pointer;';
+            testBtn.onclick = testSubtitlesFunction;
+            document.body.appendChild(testBtn);
         }
 
         // Auth Modal Functions
