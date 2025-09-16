@@ -1,11 +1,11 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "echo 'Build completed'"
+  command = "npm run build"  # ← Utilise la commande de ton package.json
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_FLAGS = "--prefix=/opt/buildhome/repo"
+  # Supprime NPM_FLAGS ou mets-le vide
 
 [[redirects]]
   from = "/api/*"
@@ -20,10 +20,6 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["googleapis"]
-
-# Variables d'environnement à configurer dans l'interface Netlify
-# YOUTUBE_API_KEY = "votre_cle_youtube_api"
-# NODE_ENV = "production"
 
 # Configuration des timeouts pour les fonctions
 [functions."subtitles"]
