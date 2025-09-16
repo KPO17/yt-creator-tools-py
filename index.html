@@ -752,18 +752,42 @@
             </div>
             
             <!-- Sous-titres -->
+            <!-- Ajoutez ceci dans la section subtitles-section de votre index.html -->
+
             <div class="subtitles-section">
-                <h2 class="section-title">📝 Sous-titres et Scripts</h2>
+                <h2 class="section-title">📄 Sous-titres et Scripts</h2>
                 <div id="subtitles-content">
                     <div class="premium-feature locked" id="subtitles-locked">
                         <div class="lock-icon">🔒</div>
                         <h3>Fonctionnalité Premium</h3>
                         <p>Connectez-vous pour accéder au téléchargement des sous-titres</p>
                     </div>
+                    
                     <div id="subtitles-available" style="display: none;">
+                        <!-- NOUVEAU : Sélecteur de langue -->
+                        <div style="margin-bottom: 20px;">
+                            <label for="subtitle-language" style="display: block; margin-bottom: 8px; font-weight: 600;">
+                                🌍 Langue des sous-titres :
+                            </label>
+                            <select id="subtitle-language" style="width: 100%; padding: 10px; border-radius: 25px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 14px;">
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="en">🇺🇸 English</option>
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="it">🇮🇹 Italiano</option>
+                                <option value="pt">🇵🇹 Português</option>
+                                <option value="ru">🇷🇺 Русский</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="ar">🇸🇦 العربية</option>
+                                <option value="auto">🔄 Détection automatique</option>
+                            </select>
+                        </div>
+
                         <div style="margin-bottom: 15px; opacity: 0.8;">
                             <strong>Formats disponibles :</strong>
                         </div>
+                        
                         <button class="btn-download" onclick="downloadSubtitles('txt')" style="margin-bottom: 10px;">
                             📄 Télécharger TXT (Texte brut)
                         </button>
@@ -773,13 +797,16 @@
                         <button class="btn-download" onclick="downloadSubtitles('vtt')" style="margin-bottom: 10px;">
                             🌐 Télécharger VTT (Web)
                         </button>
+                        <button class="btn-download" onclick="downloadSubtitles('json')" style="margin-bottom: 10px;">
+                            📋 Télécharger JSON (Données brutes)
+                        </button>
+                        
                         <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">
-                            ℹ️ Les sous-titres sont extraits directement de YouTube. Certaines vidéos peuvent ne pas avoir de sous-titres disponibles.
+                            ℹ️ Les sous-titres sont extraits directement de YouTube. Certaines vidéos peuvent ne pas avoir de sous-titres dans toutes les langues.
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
         
         <!-- Réseaux sociaux -->
         <div class="social-links">
@@ -1059,7 +1086,10 @@
         }
 
         // MODIFIER la fonction downloadSubtitles pour accepter les comptes Google
-// Fonction corrigée pour télécharger les sous-titres
+// Remplacez la fonction downloadSubtitles dans index.html par celle-ci :
+
+// Remplacez la fonction downloadSubtitles dans index.html par celle-ci :
+
 async function downloadSubtitles(format) {
     if (!currentUser) {
         showError('Connectez-vous pour accéder aux sous-titres');
@@ -1085,7 +1115,7 @@ async function downloadSubtitles(format) {
         
         console.log('Téléchargement sous-titres:', { videoId, format });
         
-        // Appeler la fonction Netlify avec une gestion d'erreur améliorée
+        // Appeler la nouvelle fonction Netlify
         const response = await fetch('/.netlify/functions/subtitles', {
             method: 'POST',
             headers: {
@@ -1094,7 +1124,7 @@ async function downloadSubtitles(format) {
             body: JSON.stringify({
                 videoId: videoId,
                 format: format,
-                language: 'fr'
+                language: getSelectedLanguage()
             })
         });
         
@@ -1108,18 +1138,20 @@ async function downloadSubtitles(format) {
                 errorData = { error: `Erreur HTTP ${response.status}` };
             }
             
-            // Messages d'erreur spécifiques
             let errorMessage = errorData.error || 'Erreur inconnue';
             
+            // Messages d'erreur spécifiques
             switch (response.status) {
-                case 401:
-                    errorMessage = 'Service temporairement indisponible - Configuration API en cours';
-                    break;
-                case 403:
-                    errorMessage = 'Limite de quota API atteinte - Réessayez plus tard';
-                    break;
                 case 404:
                     errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
+                    // Afficher les langues disponibles si présentes
+                    if (errorData.availableLanguages && errorData.availableLanguages.length > 0) {
+                        const langs = errorData.availableLanguages.map(l => l.name || l.code).join(', ');
+                        errorMessage += `. Langues disponibles: ${langs}`;
+                    }
+                    break;
+                case 400:
+                    errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
                     break;
                 case 500:
                     errorMessage = 'Erreur serveur - Veuillez réessayer';
@@ -1129,7 +1161,7 @@ async function downloadSubtitles(format) {
             throw new Error(errorMessage);
         }
         
-        // Récupérer le contenu des sous-titres
+        // Récupérer le contenu des sous-titres (texte brut)
         const subtitleContent = await response.text();
         
         if (!subtitleContent || subtitleContent.trim().length === 0) {
@@ -1137,20 +1169,20 @@ async function downloadSubtitles(format) {
         }
         
         // Créer et télécharger le fichier
-        const blob = new Blob([subtitleContent], { 
-            type: format === 'srt' ? 'application/x-subrip' : 'text/plain' 
-        });
+        const mimeType = getMimeType(format);
+        const blob = new Blob([subtitleContent], { type: mimeType });
         const downloadUrl = URL.createObjectURL(blob);
         
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = `${videoId}_subtitles.${format}`;
+        link.download = `${getVideoTitle(videoId)}_subtitles.${format}`;
         link.style.display = 'none';
         
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
+        // Nettoyer
         URL.revokeObjectURL(downloadUrl);
         
         // Afficher une pub et un message de succès
@@ -1165,8 +1197,43 @@ async function downloadSubtitles(format) {
     }
 }
 
-// Fonction utilitaire pour tester la fonction
-async function testSubtitlesFunction() {
+// Fonction utilitaire pour obtenir la langue sélectionnée
+function getSelectedLanguage() {
+    const selector = document.getElementById('subtitle-language');
+    if (!selector) return 'fr'; // Valeur par défaut
+    
+    const value = selector.value;
+    return value === 'auto' ? '' : value; // Empty string pour auto-détection
+}
+
+// Fonction utilitaire pour obtenir le type MIME
+function getMimeType(format) {
+    switch (format.toLowerCase()) {
+        case 'srt':
+            return 'application/x-subrip';
+        case 'vtt':
+            return 'text/vtt';
+        case 'json':
+            return 'application/json';
+        default:
+            return 'text/plain';
+    }
+}
+
+// Fonction utilitaire pour obtenir un nom de fichier propre
+function getVideoTitle(videoId) {
+    if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
+        // Nettoyer le titre pour le nom de fichier
+        return currentVideoData.snippet.title
+            .replace(/[^\w\s-]/g, '') // Supprimer caractères spéciaux
+            .replace(/\s+/g, '_') // Remplacer espaces par underscore
+            .substring(0, 50); // Limiter la longueur
+    }
+    return videoId; // Fallback sur l'ID
+}
+
+// Fonction pour tester la nouvelle API (optionnel, pour déboguer)
+async function testSubtitlesAPI() {
     try {
         const response = await fetch('/.netlify/functions/subtitles', {
             method: 'POST',
@@ -1174,33 +1241,65 @@ async function testSubtitlesFunction() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up (pour test)
-                format: 'txt',
+                videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up
+                format: 'json',
                 language: 'en'
             })
         });
         
-        console.log('Test API -- Status:', response.status);
+        console.log('Test API - Status:', response.status);
         
         if (response.ok) {
             const content = await response.text();
-            console.log('Test API - Succès:', content.substring(0, 100) + '...');
+            console.log('Test API - Succès:', content.substring(0, 200) + '...');
+            showSuccess('Test API réussi ! Fonction sous-titres opérationnelle.');
         } else {
             const error = await response.json();
             console.log('Test API - Erreur:', error);
+            showError(`Test API échoué: ${error.error}`);
         }
     } catch (error) {
         console.error('Test API - Exception:', error);
+        showError(`Erreur test API: ${error.message}`);
+    }
+// Fonction utilitaire pour obtenir le type MIME
+function getMimeType(format) {
+    switch (format.toLowerCase()) {
+        case 'srt':
+            return 'application/x-subrip';
+        case 'vtt':
+            return 'text/vtt';
+        case 'json':
+            return 'application/json';
+        default:
+            return 'text/plain';
     }
 }
 
-// Ajouter un bouton de test (optionnel, pour débugger)
-function addTestButton() {
-    const testBtn = document.createElement('button');
-    testBtn.textContent = 'Test API';
-    testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:red;color:white;padding:10px;border:none;cursor:pointer;';
-    testBtn.onclick = testSubtitlesFunction;
-    document.body.appendChild(testBtn);
+// Fonction utilitaire pour obtenir un nom de fichier propre
+function getVideoTitle(videoId) {
+    if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
+        // Nettoyer le titre pour le nom de fichier
+        return currentVideoData.snippet.title
+            .replace(/[^\w\s-]/g, '') // Supprimer caractères spéciaux
+            .replace(/\s+/g, '_') // Remplacer espaces par underscore
+            .substring(0, 50); // Limiter la longueur
+    }
+    return videoId; // Fallback sur l'ID
+}
+
+// Fonction utilitaire pour obtenir le type MIME
+function getMimeType(format) {
+    switch (format.toLowerCase()) {
+        case 'srt':
+            return 'application/x-subrip';
+        case 'vtt':
+            return 'text/vtt';
+        case 'json':
+            return 'application/json';
+        default:
+            return 'text/plain';
+    }
 }
 
         // Auth Modal Functions
