@@ -5,11 +5,11 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  PYTHON_VERSION = "3.9"  # Force Python 3.9
+  PYTHON_VERSION = "3.9"
 
-# Désactive l'installation automatique de Python si nécessaire
-[build.environment.mise]
-  enabled = false
+# Supprime la section mise qui cause l'erreur
+# [build.environment.mise]
+#   enabled = false
 
 [[redirects]]
   from = "/api/*"
@@ -25,8 +25,8 @@
   node_bundler = "esbuild"
   external_node_modules = ["googleapis"]
 
-# Configuration Python spécifique pour les fonctions
-[functions.python_settings]
+# Configuration plus simple pour Python
+[functions]
   python_version = "3.9"
 
 [functions."subtitles"]
