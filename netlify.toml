@@ -1,9 +1,11 @@
 [build]
   functions = "netlify/functions"
   publish = "."
+  command = "pip install -r netlify/functions/requirements.txt"
 
 [build.environment]
   NODE_VERSION = "18"
+  PYTHON_VERSION = "3.9"
 
 [[redirects]]
   from = "/api/*"
@@ -18,8 +20,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# Configuration spécifique pour la fonction subtitles
+[functions.subtitles]
+  included_files = ["netlify/functions/subtitles.js", "netlify/functions/requirements.txt"]
+
 # Variables d'environnement (à configurer dans l'interface Netlify)
-# YOUTUBE_API_KEY = "votre_cle_youtube_api"
-# FIREBASE_PROJECT_ID = "votre_project_id"
-# FIREBASE_PRIVATE_KEY = "votre_private_key"
-# FIREBASE_CLIENT_EMAIL = "votre_client_email"
+# YOUTUBE_API_KEY = "optionnel_maintenant"
+# NODE_ENV = "production"

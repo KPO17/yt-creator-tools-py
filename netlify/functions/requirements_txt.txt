@@ -1,0 +1,5 @@
+# requirements.txt
+# Placez ce fichier dans netlify/functions/
+
+youtube-transcript-api==0.6.2
+requests==2.31.0
