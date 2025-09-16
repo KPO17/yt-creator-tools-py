@@ -1,11 +1,12 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm run build"  # ← Utilise la commande de ton package.json
+  command = "npm run build"
 
+# Ajoute cette section pour Python
 [build.environment]
   NODE_VERSION = "18"
-  # Supprime NPM_FLAGS ou mets-le vide
+  PYTHON_VERSION = "3.9"  # ← Force Python 3.9
 
 [[redirects]]
   from = "/api/*"
