@@ -1,5 +1,5 @@
 // netlify/functions/subtitles.js
-// Version JavaScript pure avec Innertube API - Plus fiable que Python
+// Version améliorée avec meilleure gestion d'erreurs et méthodes alternatives
 
 const https = require('https');
 const { URL } = require('url');
@@ -15,11 +15,7 @@ exports.handler = async (event, context) => {
 
   // Gérer les requêtes OPTIONS (preflight)
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
   // Seules les requêtes POST sont acceptées
@@ -35,6 +31,7 @@ exports.handler = async (event, context) => {
   try {
     requestData = JSON.parse(event.body || '{}');
   } catch (parseError) {
+    console.error('Erreur parsing JSON:', parseError);
     return {
       statusCode: 400,
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -44,6 +41,7 @@ exports.handler = async (event, context) => {
 
   const { videoId, format = 'srt', language = 'fr' } = requestData;
 
+  // Validation de l'ID vidéo
   if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return {
       statusCode: 400,
@@ -52,61 +50,62 @@ exports.handler = async (event, context) => {
     };
   }
 
-  console.log(`[${new Date().toISOString()}] Extraction sous-titres: ${videoId}, format: ${format}, langue: ${language}`);
+  console.log(`[${new Date().toISOString()}] Début extraction: ${videoId}, format: ${format}, langue: ${language}`);
 
   try {
-    // 1. Récupérer les métadonnées vidéo via Innertube
-    const videoData = await getVideoData(videoId);
-    
-    if (!videoData || !videoData.captions) {
+    // Essayer plusieurs méthodes successivement
+    let subtitles = null;
+    let method = 'unknown';
+
+    // Méthode 1: API YouTube Data v3 (nécessite clé API)
+    try {
+      subtitles = await extractWithYouTubeAPI(videoId, language);
+      method = 'youtube-api';
+      console.log('Méthode YouTube API réussie');
+    } catch (apiError) {
+      console.log('YouTube API échouée:', apiError.message);
+    }
+
+    // Méthode 2: Scraping direct (plus fiable)
+    if (!subtitles) {
+      try {
+        subtitles = await extractWithScraping(videoId, language);
+        method = 'scraping';
+        console.log('Méthode scraping réussie');
+      } catch (scrapingError) {
+        console.log('Scraping échoué:', scrapingError.message);
+      }
+    }
+
+    // Méthode 3: Innertube (fallback)
+    if (!subtitles) {
+      try {
+        subtitles = await extractWithInnertube(videoId, language);
+        method = 'innertube';
+        console.log('Méthode Innertube réussie');
+      } catch (innertubeError) {
+        console.log('Innertube échoué:', innertubeError.message);
+      }
+    }
+
+    if (!subtitles || subtitles.length === 0) {
       return {
         statusCode: 404,
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          error: 'Aucun sous-titre disponible pour cette vidéo',
-          videoId: videoId
+          error: 'Aucun sous-titre trouvé pour cette vidéo',
+          videoId: videoId,
+          language: language,
+          debug: 'Toutes les méthodes d\'extraction ont échoué'
         })
       };
     }
 
-    // 2. Trouver l'URL des sous-titres dans la langue demandée
-    const captionUrl = findCaptionUrl(videoData.captions, language);
+    // Convertir au format demandé
+    const convertedContent = convertSubtitles(subtitles, format);
     
-    if (!captionUrl) {
-      return {
-        statusCode: 404,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          error: `Sous-titres non disponibles en ${language}`,
-          availableLanguages: getAvailableLanguages(videoData.captions),
-          videoId: videoId
-        })
-      };
-    }
+    console.log(`[${new Date().toISOString()}] Succès (${method}): ${subtitles.length} segments pour ${videoId}`);
 
-    // 3. Télécharger le contenu des sous-titres
-    const subtitleXml = await downloadSubtitles(captionUrl);
-    
-    // 4. Parser le XML et convertir au format demandé
-    const parsedSubtitles = parseSubtitleXml(subtitleXml);
-    
-    if (!parsedSubtitles || parsedSubtitles.length === 0) {
-      return {
-        statusCode: 404,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          error: 'Impossible de parser les sous-titres',
-          videoId: videoId
-        })
-      };
-    }
-
-    // 5. Convertir au format final
-    const convertedContent = convertSubtitles(parsedSubtitles, format);
-    
-    console.log(`[${new Date().toISOString()}] Succès: ${parsedSubtitles.length} segments extraits pour ${videoId}`);
-
-    // 6. Retourner le contenu
     return {
       statusCode: 200,
       headers: {
@@ -118,148 +117,228 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Erreur extraction ${videoId}:`, error.message);
+    console.error(`[${new Date().toISOString()}] Erreur critique pour ${videoId}:`, error);
     
     return {
       statusCode: 500,
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         error: 'Erreur lors de l\'extraction des sous-titres',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        videoId: videoId
+        details: error.message,
+        videoId: videoId,
+        timestamp: new Date().toISOString()
       })
     };
   }
 };
 
-// ==================== FONCTIONS INNERTUBE API ====================
+// ==================== MÉTHODE 1: SCRAPING DIRECT ====================
 
-/**
- * Récupère les métadonnées vidéo via l'API Innertube
- */
-async function getVideoData(videoId) {
-  const client = {
-    clientName: "WEB",
-    clientVersion: "2.20231219.04.00"
-  };
+async function extractWithScraping(videoId, language) {
+  console.log('Tentative scraping pour:', videoId);
+  
+  // Récupérer la page YouTube
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const pageContent = await makeHttpRequest(watchUrl, 'GET', null, {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'fr-FR,fr;q=0.8,en-US;q=0.5,en;q=0.3',
+    'Accept-Encoding': 'identity'
+  });
 
-  const payload = {
+  // Extraire les informations de sous-titres depuis le JavaScript de la page
+  const captionsRegex = /"captionTracks":\s*(\[.*?\])/;
+  const match = pageContent.match(captionsRegex);
+  
+  if (!match) {
+    throw new Error('Aucune information de sous-titres trouvée dans la page');
+  }
+
+  let captions;
+  try {
+    captions = JSON.parse(match[1]);
+  } catch (parseError) {
+    throw new Error('Impossible de parser les informations de sous-titres');
+  }
+
+  // Trouver l'URL des sous-titres
+  const captionUrl = findBestCaptionUrl(captions, language);
+  if (!captionUrl) {
+    throw new Error(`Pas de sous-titres disponibles en ${language}`);
+  }
+
+  // Télécharger et parser les sous-titres
+  const xmlContent = await downloadSubtitles(captionUrl);
+  return parseSubtitleXml(xmlContent);
+}
+
+// ==================== MÉTHODE 2: YOUTUBE API V3 ====================
+
+async function extractWithYouTubeAPI(videoId, language) {
+  // Cette méthode nécessiterait une clé API YouTube
+  // Pour l'instant, on la désactive
+  throw new Error('YouTube API v3 non configurée');
+}
+
+// ==================== MÉTHODE 3: INNERTUBE (AMÉLIORÉE) ====================
+
+async function extractWithInnertube(videoId, language) {
+  console.log('Tentative Innertube pour:', videoId);
+  
+  const clientData = {
     context: {
-      client: client
+      client: {
+        clientName: "WEB",
+        clientVersion: "2.20240101.09.00"
+      },
+      user: {
+        lockedSafetyMode: false
+      }
     },
     videoId: videoId
   };
 
-  const response = await makeHttpRequest(
-    'https://www.youtube.com/youtubei/v1/player',
-    'POST',
-    payload,
-    {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  try {
+    const response = await makeHttpRequest(
+      'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+      'POST',
+      clientData,
+      {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+        'Referer': 'https://www.youtube.com/'
+      }
+    );
+
+    const data = JSON.parse(response);
+    
+    if (!data.videoDetails) {
+      throw new Error('Vidéo non accessible via Innertube');
     }
-  );
 
-  const data = JSON.parse(response);
-  
-  if (!data.videoDetails) {
-    throw new Error('Vidéo non trouvée ou privée');
+    const captions = data.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!captions || captions.length === 0) {
+      throw new Error('Aucun sous-titre trouvé via Innertube');
+    }
+
+    const captionUrl = findBestCaptionUrl(captions, language);
+    if (!captionUrl) {
+      throw new Error(`Pas de sous-titres ${language} via Innertube`);
+    }
+
+    const xmlContent = await downloadSubtitles(captionUrl);
+    return parseSubtitleXml(xmlContent);
+
+  } catch (error) {
+    throw new Error(`Innertube failed: ${error.message}`);
   }
-
-  return {
-    title: data.videoDetails.title,
-    captions: data.captions?.playerCaptionsTracklistRenderer?.captionTracks || []
-  };
 }
 
-/**
- * Trouve l'URL des sous-titres pour la langue spécifiée
- */
-function findCaptionUrl(captions, language) {
-  if (!captions || captions.length === 0) {
-    return null;
-  }
+// ==================== UTILITAIRES AMÉLIORÉS ====================
 
-  // Essayer de trouver la langue exacte
+function findBestCaptionUrl(captions, language) {
+  if (!captions || captions.length === 0) return null;
+
+  console.log('Langues disponibles:', captions.map(c => c.languageCode || 'inconnu'));
+
+  // 1. Chercher la langue exacte (non auto-générée)
   let caption = captions.find(c => 
-    c.languageCode === language || 
-    c.languageCode?.startsWith(language)
+    (c.languageCode === language || c.languageCode?.startsWith(language)) && 
+    c.kind !== 'asr'
   );
 
-  // Fallback : première langue disponible
+  // 2. Chercher la langue exacte (même auto-générée)
   if (!caption) {
-    caption = captions.find(c => c.kind !== 'asr') || captions[0];
+    caption = captions.find(c => 
+      c.languageCode === language || c.languageCode?.startsWith(language)
+    );
   }
 
-  if (!caption || !caption.baseUrl) {
-    return null;
+  // 3. Chercher l'anglais comme fallback
+  if (!caption) {
+    caption = captions.find(c => 
+      c.languageCode?.startsWith('en') && c.kind !== 'asr'
+    );
   }
 
-  // Ajouter le paramètre format=xml3 pour avoir le XML complet
+  // 4. Prendre le premier disponible
+  if (!caption) {
+    caption = captions[0];
+  }
+
+  if (!caption?.baseUrl) return null;
+
+  // Construire l'URL avec format XML
   const url = new URL(caption.baseUrl);
   url.searchParams.set('format', 'xml3');
+  url.searchParams.set('fmt', 'xml3');
   
   return url.toString();
 }
 
-/**
- * Liste les langues disponibles
- */
-function getAvailableLanguages(captions) {
-  if (!captions || captions.length === 0) {
-    return [];
-  }
-
-  return captions.map(caption => ({
-    code: caption.languageCode,
-    name: caption.name?.simpleText || caption.languageCode,
-    auto: caption.kind === 'asr'
-  }));
-}
-
-/**
- * Télécharge le contenu des sous-titres
- */
 async function downloadSubtitles(url) {
-  console.log(`Téléchargement sous-titres: ${url}`);
+  console.log(`Téléchargement: ${url.substring(0, 100)}...`);
   
   return makeHttpRequest(url, 'GET', null, {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': 'application/xml, text/xml, */*',
+    'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8'
   });
 }
 
-/**
- * Parse le XML des sous-titres YouTube
- */
 function parseSubtitleXml(xmlContent) {
+  console.log(`Parsing XML (${xmlContent.length} caractères)`);
+  
   const subtitles = [];
   
-  // Expression régulière pour extraire les balises <text>
-  const textRegex = /<text start="([^"]*)"(?:\s+dur="([^"]*)")?>([^<]*)</g;
+  // Méthode 1: Regex améliorée pour <text>
+  const textRegex = /<text\s+start="([^"]*)"(?:\s+dur="([^"]*)")?[^>]*>([^<]*)<\/text>/gi;
   
   let match;
   while ((match = textRegex.exec(xmlContent)) !== null) {
     const start = parseFloat(match[1]);
-    const duration = parseFloat(match[2]) || 3.0; // Durée par défaut
-    const text = decodeHtmlEntities(match[3].trim());
+    const duration = parseFloat(match[2]) || 3.0;
+    const text = decodeHtmlEntities(match[3]);
     
-    if (text && text.length > 0) {
+    if (text && text.trim().length > 0 && !isNaN(start)) {
       subtitles.push({
         start: start,
         duration: duration,
         end: start + duration,
-        text: text
+        text: text.trim()
       });
     }
   }
-  
+
+  // Méthode 2: Si la première a échoué, essayer une regex plus simple
+  if (subtitles.length === 0) {
+    console.log('Tentative parsing alternatif...');
+    const altRegex = /<text[^>]*start="([^"]*)"[^>]*>([^<]*)/gi;
+    
+    while ((match = altRegex.exec(xmlContent)) !== null) {
+      const start = parseFloat(match[1]);
+      const text = decodeHtmlEntities(match[2]);
+      
+      if (text && text.trim().length > 0 && !isNaN(start)) {
+        subtitles.push({
+          start: start,
+          duration: 3.0,
+          end: start + 3.0,
+          text: text.trim()
+        });
+      }
+    }
+  }
+
+  console.log(`Parsed ${subtitles.length} segments`);
   return subtitles;
 }
 
-/**
- * Décode les entités HTML
- */
 function decodeHtmlEntities(text) {
+  if (!text) return '';
+  
   return text
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -267,6 +346,8 @@ function decodeHtmlEntities(text) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+    .replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/\n/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -274,27 +355,16 @@ function decodeHtmlEntities(text) {
 
 // ==================== CONVERSION DE FORMATS ====================
 
-/**
- * Convertit les sous-titres au format demandé
- */
 function convertSubtitles(subtitles, format) {
   switch (format.toLowerCase()) {
-    case 'srt':
-      return convertToSrt(subtitles);
-    case 'vtt':
-      return convertToVtt(subtitles);
-    case 'txt':
-      return convertToTxt(subtitles);
-    case 'json':
-      return JSON.stringify(subtitles, null, 2);
-    default:
-      return convertToSrt(subtitles);
+    case 'srt': return convertToSrt(subtitles);
+    case 'vtt': return convertToVtt(subtitles);
+    case 'txt': return convertToTxt(subtitles);
+    case 'json': return JSON.stringify(subtitles, null, 2);
+    default: return convertToSrt(subtitles);
   }
 }
 
-/**
- * Convertit au format SRT
- */
 function convertToSrt(subtitles) {
   return subtitles.map((entry, index) => {
     const start = formatSrtTime(entry.start);
@@ -303,9 +373,6 @@ function convertToSrt(subtitles) {
   }).join('\n');
 }
 
-/**
- * Convertit au format VTT (WebVTT)
- */
 function convertToVtt(subtitles) {
   const header = 'WEBVTT\n\n';
   const content = subtitles.map((entry, index) => {
@@ -317,16 +384,10 @@ function convertToVtt(subtitles) {
   return header + content;
 }
 
-/**
- * Convertit au format TXT (texte brut)
- */
 function convertToTxt(subtitles) {
   return subtitles.map(entry => entry.text).join('\n');
 }
 
-/**
- * Formate le temps pour SRT (format: 00:00:00,000)
- */
 function formatSrtTime(seconds) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -336,34 +397,21 @@ function formatSrtTime(seconds) {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
 }
 
-/**
- * Formate le temps pour VTT (format: 00:00:00.000)
- */
 function formatVttTime(seconds) {
   return formatSrtTime(seconds).replace(',', '.');
 }
 
-/**
- * Détermine le type de contenu selon le format
- */
 function getContentType(format) {
   switch (format.toLowerCase()) {
-    case 'srt':
-      return 'application/x-subrip; charset=utf-8';
-    case 'vtt':
-      return 'text/vtt; charset=utf-8';
-    case 'json':
-      return 'application/json; charset=utf-8';
-    default:
-      return 'text/plain; charset=utf-8';
+    case 'srt': return 'application/x-subrip; charset=utf-8';
+    case 'vtt': return 'text/vtt; charset=utf-8';
+    case 'json': return 'application/json; charset=utf-8';
+    default: return 'text/plain; charset=utf-8';
   }
 }
 
-// ==================== UTILITAIRES HTTP ====================
+// ==================== HTTP AMÉLIORÉ ====================
 
-/**
- * Effectue une requête HTTP
- */
 function makeHttpRequest(url, method = 'GET', data = null, headers = {}) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
@@ -379,11 +427,13 @@ function makeHttpRequest(url, method = 'GET', data = null, headers = {}) {
         'Connection': 'close',
         ...headers
       },
-      timeout: 30000 // 30 secondes
+      timeout: 60000 // 60 secondes au lieu de 30
     };
 
+    // Préparer les données
+    let payload = null;
     if (data && method !== 'GET') {
-      const payload = typeof data === 'string' ? data : JSON.stringify(data);
+      payload = typeof data === 'string' ? data : JSON.stringify(data);
       options.headers['Content-Length'] = Buffer.byteLength(payload);
       
       if (!options.headers['Content-Type']) {
@@ -394,6 +444,12 @@ function makeHttpRequest(url, method = 'GET', data = null, headers = {}) {
     const req = https.request(options, (res) => {
       let responseData = '';
       
+      // Gérer les redirections
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        console.log(`Redirection vers: ${res.headers.location}`);
+        return resolve(makeHttpRequest(res.headers.location, method, data, headers));
+      }
+      
       res.setEncoding('utf8');
       res.on('data', (chunk) => responseData += chunk);
       
@@ -401,23 +457,22 @@ function makeHttpRequest(url, method = 'GET', data = null, headers = {}) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(responseData);
         } else {
-          reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+          reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage || 'Erreur inconnue'}`));
         }
       });
     });
 
     req.on('error', (error) => {
-      reject(new Error(`Erreur requête: ${error.message}`));
+      reject(new Error(`Erreur réseau: ${error.message}`));
     });
 
     req.on('timeout', () => {
       req.destroy();
-      reject(new Error('Timeout de la requête'));
+      reject(new Error('Timeout de la requête (60s)'));
     });
 
-    // Envoyer les données si POST/PUT
-    if (data && method !== 'GET') {
-      const payload = typeof data === 'string' ? data : JSON.stringify(data);
+    // Envoyer les données
+    if (payload) {
       req.write(payload);
     }
 

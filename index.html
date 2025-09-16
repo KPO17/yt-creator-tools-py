@@ -1700,6 +1700,34 @@
             } finally {
                 showLoading(false);
             }
+
+            // Dans votre fonction downloadSubtitles côté client
+try {
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId, format, language })
+  });
+
+  console.log('Status:', response.status);
+  console.log('Headers:', response.headers);
+  
+  const responseText = await response.text();
+  console.log('Response body:', responseText);
+  
+  if (!response.ok) {
+    // Essayer de parser l'erreur JSON
+    try {
+      const errorData = JSON.parse(responseText);
+      console.error('Détails erreur:', errorData);
+    } catch (e) {
+      console.error('Erreur brute:', responseText);
+    }
+  }
+  
+} catch (error) {
+  console.error('Erreur réseau:', error);
+}
         }
     </script>
 </body>
