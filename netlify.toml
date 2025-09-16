@@ -20,6 +20,9 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["googleapis"]
+
+# Configuration Python correcte
+[functions.python_settings]
   python_version = "3.9"
 
 [functions."subtitles"]
