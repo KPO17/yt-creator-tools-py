@@ -1,7 +1,7 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm install @treeee/youtube-caption-extractor"
+  command = "npm install ytdl-core"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -19,14 +19,14 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["@treeee/youtube-caption-extractor"]
+  external_node_modules = ["ytdl-core"]
 
 # Configuration spécifique pour la fonction subtitles
 [functions."subtitles"]
-  timeout = 30
+  timeout = 45
   memory = 1024
   node_bundler = "esbuild"
-  external_node_modules = ["@treeee/youtube-caption-extractor"]
+  external_node_modules = ["ytdl-core"]
 
 # Headers de sécurité globaux
 [[headers]]
@@ -55,6 +55,7 @@
 # Variables d'environnement
 [context.production.environment]
   NODE_ENV = "production"
+  NODE_OPTIONS = "--max-old-space-size=1024"
 
 [context.development.environment]
   NODE_ENV = "development"

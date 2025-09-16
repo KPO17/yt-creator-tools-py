@@ -7,10 +7,11 @@
     "dev": "netlify dev",
     "build": "npm install",
     "deploy": "netlify deploy --prod",
-    "install-deps": "npm install @treeee/youtube-caption-extractor googleapis firebase-admin"
+    "install-deps": "npm install ytdl-core googleapis firebase-admin",
+    "test-subtitles": "node test-subtitles.js"
   },
   "dependencies": {
-    "@treeee/youtube-caption-extractor": "^1.1.0",
+    "ytdl-core": "^4.11.5",
     "googleapis": "^126.0.1",
     "firebase-admin": "^11.11.0"
   },
@@ -29,7 +30,8 @@
     "creator-tools",
     "thumbnails",
     "subtitles",
-    "video-metadata"
+    "video-metadata",
+    "ytdl-core"
   ],
   "author": "KINGSOFT BUSINESS",
   "license": "MIT"

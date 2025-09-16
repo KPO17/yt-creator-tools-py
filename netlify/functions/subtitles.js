@@ -1,10 +1,10 @@
-// netlify/functions/subtitles.js - VERSION REFACTORISÉE
-const { getCaptions } = require('@treeee/youtube-caption-extractor');
+// netlify/functions/subtitles.js - VERSION AVEC YTDL-CORE
+const ytdl = require('ytdl-core');
 
 // Configuration
 const CONFIG = {
   DEBUG: process.env.NODE_ENV !== 'production',
-  TIMEOUT: 25000, // 25s
+  TIMEOUT: 30000, // 30s
   MAX_RETRIES: 2
 };
 
@@ -76,19 +76,19 @@ exports.handler = async (event, context) => {
   log('info', `Extraction [${requestId}]`, { videoId, format, language });
 
   try {
-    // Utiliser la bibliothèque youtube-caption-extractor
-    const captions = await extractWithRetry(videoId, language, requestId);
+    // Extraire les sous-titres avec ytdl-core
+    const subtitles = await extractSubtitlesWithYtdl(videoId, language, requestId);
     
-    if (!captions || captions.length === 0) {
+    if (!subtitles || subtitles.length === 0) {
       return createErrorResponse(404, 'Aucun sous-titre disponible', requestId, headers);
     }
 
     // Convertir au format demandé
-    const convertedContent = convertSubtitles(captions, format);
+    const convertedContent = convertSubtitles(subtitles, format);
     const duration = Date.now() - startTime;
     
     log('info', `Succès [${requestId}]`, { 
-      segments: captions.length,
+      segments: subtitles.length,
       duration: `${duration}ms`
     });
 
@@ -118,53 +118,144 @@ exports.handler = async (event, context) => {
     } else if (error.message.includes('timeout')) {
       statusCode = 408;
       message = 'Délai d\'attente dépassé';
-    } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
-      statusCode = 503;
-      message = 'Service YouTube temporairement indisponible';
+    } else if (error.message.includes('private') || error.message.includes('unavailable')) {
+      statusCode = 403;
+      message = 'Vidéo privée ou indisponible';
+    } else if (error.message.includes('age-restricted')) {
+      statusCode = 403;
+      message = 'Vidéo soumise à restriction d\'âge';
     }
 
     return createErrorResponse(statusCode, message, requestId, headers);
   }
 };
 
-// Extraction avec retry
-async function extractWithRetry(videoId, language, requestId, attempt = 1) {
+// Extraction avec ytdl-core
+async function extractSubtitlesWithYtdl(videoId, language, requestId, attempt = 1) {
   const maxAttempts = CONFIG.MAX_RETRIES + 1;
   
   try {
     log('info', `Tentative ${attempt}/${maxAttempts} [${requestId}]`);
     
-    // Options pour la bibliothèque
-    const options = {
-      lang: language || 'fr'
-    };
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    
+    // Vérifier si la vidéo existe et est accessible
+    const isValid = await Promise.race([
+      ytdl.validateURL(videoUrl),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout validation')), 10000)
+      )
+    ]);
+    
+    if (!isValid) {
+      throw new Error('URL vidéo invalide ou inaccessible');
+    }
+    
+    // Obtenir les informations de la vidéo
+    const info = await Promise.race([
+      ytdl.getInfo(videoUrl, {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
+        }
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), CONFIG.TIMEOUT)
+      )
+    ]);
 
-    // Extraction avec timeout
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout')), CONFIG.TIMEOUT)
-    );
-
-    const extractionPromise = getCaptions(videoId, options);
-    const captions = await Promise.race([extractionPromise, timeoutPromise]);
+    // Extraire les sous-titres disponibles
+    const { player_response } = info;
+    const captions = player_response?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
     
     if (!captions || captions.length === 0) {
-      throw new Error('Aucun sous-titre trouvé');
+      throw new Error('Aucun sous-titre trouvé pour cette vidéo');
     }
-
-    return captions;
+    
+    // Trouver les sous-titres dans la langue demandée
+    let selectedTrack = null;
+    
+    if (language && language !== 'auto') {
+      selectedTrack = captions.find(track => 
+        track.languageCode === language || 
+        track.languageCode.startsWith(language.substring(0, 2))
+      );
+    }
+    
+    // Si pas de langue spécifique trouvée, prendre le premier disponible
+    if (!selectedTrack) {
+      selectedTrack = captions[0];
+      log('info', `Langue ${language} non trouvée, utilisation de ${selectedTrack.languageCode} [${requestId}]`);
+    }
+    
+    // Télécharger le contenu des sous-titres
+    const subtitleUrl = selectedTrack.baseUrl;
+    const subtitleResponse = await fetch(subtitleUrl);
+    
+    if (!subtitleResponse.ok) {
+      throw new Error(`Erreur téléchargement sous-titres: ${subtitleResponse.status}`);
+    }
+    
+    const subtitleXml = await subtitleResponse.text();
+    
+    // Parser le XML des sous-titres
+    const subtitles = parseYouTubeSubtitles(subtitleXml);
+    
+    log('info', `Sous-titres extraits [${requestId}]`, { 
+      count: subtitles.length,
+      language: selectedTrack.languageCode 
+    });
+    
+    return subtitles;
     
   } catch (error) {
     log('warn', `Échec tentative ${attempt} [${requestId}]: ${error.message}`);
     
     if (attempt < maxAttempts) {
       // Backoff exponentiel
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return extractWithRetry(videoId, language, requestId, attempt + 1);
+      return extractSubtitlesWithYtdl(videoId, language, requestId, attempt + 1);
     }
     
     throw error;
   }
+}
+
+// Parser XML des sous-titres YouTube
+function parseYouTubeSubtitles(xmlContent) {
+  const subtitles = [];
+  
+  // Expression régulière pour extraire les segments de sous-titres
+  const textRegex = /<text start="([^"]*)" dur="([^"]*)"[^>]*>([^<]*)<\/text>/g;
+  
+  let match;
+  while ((match = textRegex.exec(xmlContent)) !== null) {
+    const start = parseFloat(match[1]);
+    const duration = parseFloat(match[2]) || 2.0;
+    let text = match[3];
+    
+    // Décoder les entités HTML
+    text = text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .trim();
+    
+    if (text) {
+      subtitles.push({
+        start: start,
+        dur: duration,
+        text: text
+      });
+    }
+  }
+  
+  return subtitles;
 }
 
 // Helper pour créer les réponses d'erreur
@@ -181,7 +272,7 @@ function createErrorResponse(statusCode, message, requestId, headers, extra = {}
   };
 }
 
-// Conversion des formats
+// Conversion des formats (identique à l'ancienne version)
 function convertSubtitles(captions, format) {
   if (!captions || captions.length === 0) {
     return format === 'json' ? '[]' : '';
