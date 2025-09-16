@@ -145,6 +145,22 @@
             color: white;
         }
         
+        .btn-google {
+            background: white;
+            color: #333;
+            border: 2px solid #4285f4;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-google:hover {
+            background: #f8f9fa;
+            border-color: #3367d6;
+        }
+        
         .input-section {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
@@ -178,7 +194,23 @@
             transition: all 0.3s ease;
         }
         
-        input:focus {
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 25px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        input:focus, select:focus {
             border-color: #FF0000;
             background: rgba(255, 255, 255, 0.15);
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
@@ -451,7 +483,9 @@
         }
         
         .social-icon {
-            display: inline-block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 15px;
             border-radius: 50%;
             color: white;
@@ -460,9 +494,6 @@
             transition: all 0.3s ease;
             width: 60px;
             height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
         .social-icon.youtube { background: #FF0000; }
@@ -531,15 +562,6 @@
             color: #333;
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
         /* Auth Modal */
         .auth-modal {
             display: none;
@@ -601,34 +623,14 @@
         .auth-form.active {
             display: block;
         }
-
-        .btn-google {
-            background: white;
-            color: #333;
-            border: 1px solid #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-weight: 500;
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-
-        .btn-google:hover {
-            background: #f8f9fa;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-auth.btn-google {
-            background: white;
-            color: #333;
-            border: 2px solid #4285f4;
-            font-weight: 600;
-        }
-
-        .btn-auth.btn-google:hover {
-            background: #f8f9fa;
-            border-color: #3367d6;
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         @media (max-width: 768px) {
@@ -654,8 +656,8 @@
             .auth-buttons {
                 width: 100%;
                 justify-content: center;
+                flex-wrap: wrap;
             }
-            
         }
     </style>
 </head>
@@ -687,7 +689,6 @@
             <div class="auth-buttons" id="auth-buttons">
                 <button class="btn-auth btn-login" onclick="openAuthModal('login')">Se connecter</button>
                 <button class="btn-auth btn-register" onclick="openAuthModal('register')">S'inscrire</button>
-                <!-- NOUVEAU : Bouton Google -->
                 <button class="btn-auth btn-google" onclick="signInWithGoogle()">
                     <span>🔴</span> Continuer avec Google
                 </button>
@@ -752,8 +753,6 @@
             </div>
             
             <!-- Sous-titres -->
-            <!-- Ajoutez ceci dans la section subtitles-section de votre index.html -->
-
             <div class="subtitles-section">
                 <h2 class="section-title">📄 Sous-titres et Scripts</h2>
                 <div id="subtitles-content">
@@ -764,12 +763,12 @@
                     </div>
                     
                     <div id="subtitles-available" style="display: none;">
-                        <!-- NOUVEAU : Sélecteur de langue -->
+                        <!-- Sélecteur de langue -->
                         <div style="margin-bottom: 20px;">
                             <label for="subtitle-language" style="display: block; margin-bottom: 8px; font-weight: 600;">
                                 🌍 Langue des sous-titres :
                             </label>
-                            <select id="subtitle-language" style="width: 100%; padding: 10px; border-radius: 25px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 14px;">
+                            <select id="subtitle-language">
                                 <option value="fr">🇫🇷 Français</option>
                                 <option value="en">🇺🇸 English</option>
                                 <option value="es">🇪🇸 Español</option>
@@ -807,6 +806,7 @@
                     </div>
                 </div>
             </div>
+        </div>
         
         <!-- Réseaux sociaux -->
         <div class="social-links">
@@ -833,7 +833,6 @@
             <form class="auth-form active" id="login-form">
                 <h2 style="margin-bottom: 20px; color: white;">Se connecter</h2>
                 
-                <!-- NOUVEAU : Bouton Google dans la modale -->
                 <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
                     <span>🔴</span> Continuer avec Google
                 </button>
@@ -850,7 +849,6 @@
             <form class="auth-form" id="register-form">
                 <h2 style="margin-bottom: 20px; color: white;">S'inscrire</h2>
                 
-                <!-- NOUVEAU : Bouton Google dans la modale -->
                 <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
                     <span>🔴</span> Créer un compte avec Google
                 </button>
@@ -895,15 +893,20 @@
             appId: "yt-creator-tools"
         };
 
-        //Initialiser Firebase (décommenter quand vous aurez les vraies clés)
+        // Initialiser Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
         // Configuration YouTube API
-        const YOUTUBE_API_KEY = 'AIzaSyA4T9faYdV6U3kdNpjEdXtVfz3jXtsJILQ'; // Remplacez par votre clé API
+        const YOUTUBE_API_KEY = 'AIzaSyA4T9faYdV6U3kdNpjEdXtVfz3jXtsJILQ';
         
         let currentUser = null;
         let currentVideoData = null;
+
+        // Configuration Google Auth Provider
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
 
         // Observer l'état d'authentification Firebase
         auth.onAuthStateChanged((user) => {
@@ -911,34 +914,42 @@
             currentUser = user;
             updateAuthUI();
             
-            if (user && !user.emailVerified) {
+            if (user && !user.emailVerified && !isGoogleUser(user)) {
                 showError('Veuillez vérifier votre email avant d\'accéder aux fonctionnalités premium');
                 startEmailVerificationCheck();
             }
         });
 
-
-        // Configuration Google Auth Provider
-        const googleProvider = new firebase.auth.GoogleAuthProvider();
-        googleProvider.addScope('email');
-        googleProvider.addScope('profile');
+        // Gérer le retour de redirection Google
+        auth.getRedirectResult().then((result) => {
+            if (result.user) {
+                console.log('Retour Google redirect:', result.user);
+                showSuccess('Connexion Google réussie !');
+                
+                if (result.additionalUserInfo && result.additionalUserInfo.isNewUser) {
+                    showSuccess('Compte créé avec Google ! Bienvenue !');
+                }
+            }
+        }).catch((error) => {
+            if (error.code !== 'auth/no-redirect-operation') {
+                console.error('Erreur redirect result:', error);
+                showError('Erreur lors de la connexion Google');
+            }
+        });
 
         // FONCTION : Connexion Google
         async function signInWithGoogle() {
             try {
                 showLoading(true);
                 
-                // Utiliser popup pour éviter les problèmes de redirection
                 const result = await auth.signInWithPopup(googleProvider);
                 const user = result.user;
                 
                 console.log('Google Sign-In réussi:', user);
                 
-                // L'email Google est automatiquement vérifié
                 closeAuthModal();
                 showSuccess('Connexion Google réussie !');
                 
-                // Optionnel : sauvegarder des infos supplémentaires
                 if (result.additionalUserInfo.isNewUser) {
                     console.log('Nouvel utilisateur Google créé');
                     showSuccess('Compte créé avec Google ! Bienvenue !');
@@ -971,42 +982,19 @@
             }
         }
 
-        // FONCTION ALTERNATIVE : Redirection (si popup ne fonctionne pas)
-        async function signInWithGoogleRedirect() {
-            try {
-                await auth.signInWithRedirect(googleProvider);
-                // Le résultat sera géré au rechargement de la page
-            } catch (error) {
-                console.error('Erreur Google Redirect:', error);
-                showError('Erreur de redirection Google');
-            }
+        // Fonction utilitaire pour détecter les comptes Google
+        function isGoogleUser(user) {
+            if (!user || !user.providerData) return false;
+            return user.providerData.some(provider => provider.providerId === 'google.com');
         }
 
-        // GÉRER le retour de redirection Google (ajouter dans DOMContentLoaded)
-        auth.getRedirectResult().then((result) => {
-            if (result.user) {
-                console.log('Retour Google redirect:', result.user);
-                showSuccess('Connexion Google réussie !');
-                
-                if (result.additionalUserInfo && result.additionalUserInfo.isNewUser) {
-                    showSuccess('Compte créé avec Google ! Bienvenue !');
-                }
-            }
-        }).catch((error) => {
-            if (error.code !== 'auth/no-redirect-operation') {
-                console.error('Erreur redirect result:', error);
-                showError('Erreur lors de la connexion Google');
-            }
-        });
-
-        // MODIFIER la fonction updateAuthUI pour mieux gérer les comptes Google
+        // Mise à jour UI avec gestion du statut de vérification
         function updateAuthUI() {
             const userInfo = document.getElementById('user-info');
             const authButtons = document.getElementById('auth-buttons');
             const loggedInActions = document.getElementById('logged-in-actions');
             const subtitlesLocked = document.getElementById('subtitles-locked');
             const subtitlesAvailable = document.getElementById('subtitles-available');
-            const verificationStatus = document.getElementById('verification-status');
 
             if (currentUser && (currentUser.emailVerified || isGoogleUser(currentUser))) {
                 // Utilisateur vérifié (email ou Google)
@@ -1027,8 +1015,6 @@
                         currentUser.email.charAt(0).toUpperCase();
                 }
                 
-                if (verificationStatus) verificationStatus.style.display = 'none';
-                
                 // Débloquer premium
                 if (subtitlesLocked) subtitlesLocked.style.display = 'none';
                 if (subtitlesAvailable) subtitlesAvailable.style.display = 'block';
@@ -1042,8 +1028,6 @@
                 document.getElementById('user-email').textContent = currentUser.email;
                 document.getElementById('user-name').textContent = 'Email non vérifié';
                 document.getElementById('user-avatar').textContent = '!';
-                
-                if (verificationStatus) verificationStatus.style.display = 'block';
                 
                 // Bloquer premium
                 if (subtitlesLocked) {
@@ -1065,8 +1049,6 @@
                 authButtons.style.display = 'flex';
                 loggedInActions.style.display = 'none';
                 
-                if (verificationStatus) verificationStatus.style.display = 'none';
-                
                 if (subtitlesLocked) {
                     subtitlesLocked.innerHTML = `
                         <div class="lock-icon">🔒</div>
@@ -1079,228 +1061,147 @@
             }
         }
 
-        // FONCTION utilitaire pour détecter les comptes Google
-        function isGoogleUser(user) {
-            if (!user || !user.providerData) return false;
-            return user.providerData.some(provider => provider.providerId === 'google.com');
-        }
-
-        // MODIFIER la fonction downloadSubtitles pour accepter les comptes Google
-// Remplacez la fonction downloadSubtitles dans index.html par celle-ci :
-
-// Remplacez la fonction downloadSubtitles dans index.html par celle-ci :
-
-async function downloadSubtitles(format) {
-    if (!currentUser) {
-        showError('Connectez-vous pour accéder aux sous-titres');
-        return;
-    }
-    
-    // Accepter les comptes Google ET les emails vérifiés
-    if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
-        showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
-        return;
-    }
-    
-    const url = document.getElementById('youtube-url').value.trim();
-    const videoId = getVideoId(url);
-    
-    if (!videoId) {
-        showError('Aucune vidéo sélectionnée');
-        return;
-    }
-    
-    try {
-        showLoading(true);
-        
-        console.log('Téléchargement sous-titres:', { videoId, format });
-        
-        // Appeler la nouvelle fonction Netlify
-        const response = await fetch('/.netlify/functions/subtitles', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                videoId: videoId,
-                format: format,
-                language: getSelectedLanguage()
-            })
-        });
-        
-        console.log('Réponse API:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            let errorData;
+        // Fonction downloadSubtitles corrigée
+        async function downloadSubtitles(format) {
+            if (!currentUser) {
+                showError('Connectez-vous pour accéder aux sous-titres');
+                return;
+            }
+            
+            // Accepter les comptes Google ET les emails vérifiés
+            if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
+                showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
+                return;
+            }
+            
+            const url = document.getElementById('youtube-url').value.trim();
+            const videoId = getVideoId(url);
+            
+            if (!videoId) {
+                showError('Aucune vidéo sélectionnée');
+                return;
+            }
+            
             try {
-                errorData = await response.json();
-            } catch (e) {
-                errorData = { error: `Erreur HTTP ${response.status}` };
-            }
-            
-            let errorMessage = errorData.error || 'Erreur inconnue';
-            
-            // Messages d'erreur spécifiques
-            switch (response.status) {
-                case 404:
-                    errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
-                    // Afficher les langues disponibles si présentes
-                    if (errorData.availableLanguages && errorData.availableLanguages.length > 0) {
-                        const langs = errorData.availableLanguages.map(l => l.name || l.code).join(', ');
-                        errorMessage += `. Langues disponibles: ${langs}`;
+                showLoading(true);
+                
+                console.log('Téléchargement sous-titres:', { videoId, format });
+                
+                // Appeler la nouvelle fonction Netlify
+                const response = await fetch('/.netlify/functions/subtitles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        videoId: videoId,
+                        format: format,
+                        language: getSelectedLanguage()
+                    })
+                });
+                
+                console.log('Réponse API:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        errorData = { error: `Erreur HTTP ${response.status}` };
                     }
-                    break;
-                case 400:
-                    errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
-                    break;
-                case 500:
-                    errorMessage = 'Erreur serveur - Veuillez réessayer';
-                    break;
+                    
+                    let errorMessage = errorData.error || 'Erreur inconnue';
+                    
+                    // Messages d'erreur spécifiques
+                    switch (response.status) {
+                        case 404:
+                            errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
+                            // Afficher les langues disponibles si présentes
+                            if (errorData.availableLanguages && errorData.availableLanguages.length > 0) {
+                                const langs = errorData.availableLanguages.map(l => l.name || l.code).join(', ');
+                                errorMessage += `. Langues disponibles: ${langs}`;
+                            }
+                            break;
+                        case 400:
+                            errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
+                            break;
+                        case 500:
+                            errorMessage = 'Erreur serveur - Veuillez réessayer';
+                            break;
+                    }
+                    
+                    throw new Error(errorMessage);
+                }
+                
+                // Récupérer le contenu des sous-titres (texte brut)
+                const subtitleContent = await response.text();
+                
+                if (!subtitleContent || subtitleContent.trim().length === 0) {
+                    throw new Error('Contenu des sous-titres vide');
+                }
+                
+                // Créer et télécharger le fichier
+                const mimeType = getMimeType(format);
+                const blob = new Blob([subtitleContent], { type: mimeType });
+                const downloadUrl = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `${getVideoTitle(videoId)}_subtitles.${format}`;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Nettoyer
+                URL.revokeObjectURL(downloadUrl);
+                
+                // Afficher une pub et un message de succès
+                showAdModal();
+                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
+                
+            } catch (error) {
+                console.error('Erreur téléchargement sous-titres:', error);
+                showError(error.message || 'Erreur lors du téléchargement des sous-titres');
+            } finally {
+                showLoading(false);
             }
+        }
+
+        // Fonction utilitaire pour obtenir la langue sélectionnée
+        function getSelectedLanguage() {
+            const selector = document.getElementById('subtitle-language');
+            if (!selector) return 'fr';
             
-            throw new Error(errorMessage);
+            const value = selector.value;
+            return value === 'auto' ? '' : value;
         }
-        
-        // Récupérer le contenu des sous-titres (texte brut)
-        const subtitleContent = await response.text();
-        
-        if (!subtitleContent || subtitleContent.trim().length === 0) {
-            throw new Error('Contenu des sous-titres vide');
+
+        // Fonction utilitaire pour obtenir le type MIME
+        function getMimeType(format) {
+            switch (format.toLowerCase()) {
+                case 'srt':
+                    return 'application/x-subrip';
+                case 'vtt':
+                    return 'text/vtt';
+                case 'json':
+                    return 'application/json';
+                default:
+                    return 'text/plain';
+            }
         }
-        
-        // Créer et télécharger le fichier
-        const mimeType = getMimeType(format);
-        const blob = new Blob([subtitleContent], { type: mimeType });
-        const downloadUrl = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `${getVideoTitle(videoId)}_subtitles.${format}`;
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Nettoyer
-        URL.revokeObjectURL(downloadUrl);
-        
-        // Afficher une pub et un message de succès
-        showAdModal();
-        showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
-        
-    } catch (error) {
-        console.error('Erreur téléchargement sous-titres:', error);
-        showError(error.message || 'Erreur lors du téléchargement des sous-titres');
-    } finally {
-        showLoading(false);
-    }
-}
 
-// Fonction utilitaire pour obtenir la langue sélectionnée
-function getSelectedLanguage() {
-    const selector = document.getElementById('subtitle-language');
-    if (!selector) return 'fr'; // Valeur par défaut
-    
-    const value = selector.value;
-    return value === 'auto' ? '' : value; // Empty string pour auto-détection
-}
-
-// Fonction utilitaire pour obtenir le type MIME
-function getMimeType(format) {
-    switch (format.toLowerCase()) {
-        case 'srt':
-            return 'application/x-subrip';
-        case 'vtt':
-            return 'text/vtt';
-        case 'json':
-            return 'application/json';
-        default:
-            return 'text/plain';
-    }
-}
-
-// Fonction utilitaire pour obtenir un nom de fichier propre
-function getVideoTitle(videoId) {
-    if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
-        // Nettoyer le titre pour le nom de fichier
-        return currentVideoData.snippet.title
-            .replace(/[^\w\s-]/g, '') // Supprimer caractères spéciaux
-            .replace(/\s+/g, '_') // Remplacer espaces par underscore
-            .substring(0, 50); // Limiter la longueur
-    }
-    return videoId; // Fallback sur l'ID
-}
-
-// Fonction pour tester la nouvelle API (optionnel, pour déboguer)
-async function testSubtitlesAPI() {
-    try {
-        const response = await fetch('/.netlify/functions/subtitles', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up
-                format: 'json',
-                language: 'en'
-            })
-        });
-        
-        console.log('Test API - Status:', response.status);
-        
-        if (response.ok) {
-            const content = await response.text();
-            console.log('Test API - Succès:', content.substring(0, 200) + '...');
-            showSuccess('Test API réussi ! Fonction sous-titres opérationnelle.');
-        } else {
-            const error = await response.json();
-            console.log('Test API - Erreur:', error);
-            showError(`Test API échoué: ${error.error}`);
+        // Fonction utilitaire pour obtenir un nom de fichier propre
+        function getVideoTitle(videoId) {
+            if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
+                return currentVideoData.snippet.title
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '_')
+                    .substring(0, 50);
+            }
+            return videoId;
         }
-    } catch (error) {
-        console.error('Test API - Exception:', error);
-        showError(`Erreur test API: ${error.message}`);
-    }
-// Fonction utilitaire pour obtenir le type MIME
-function getMimeType(format) {
-    switch (format.toLowerCase()) {
-        case 'srt':
-            return 'application/x-subrip';
-        case 'vtt':
-            return 'text/vtt';
-        case 'json':
-            return 'application/json';
-        default:
-            return 'text/plain';
-    }
-}
-
-// Fonction utilitaire pour obtenir un nom de fichier propre
-function getVideoTitle(videoId) {
-    if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
-        // Nettoyer le titre pour le nom de fichier
-        return currentVideoData.snippet.title
-            .replace(/[^\w\s-]/g, '') // Supprimer caractères spéciaux
-            .replace(/\s+/g, '_') // Remplacer espaces par underscore
-            .substring(0, 50); // Limiter la longueur
-    }
-    return videoId; // Fallback sur l'ID
-}
-
-// Fonction utilitaire pour obtenir le type MIME
-function getMimeType(format) {
-    switch (format.toLowerCase()) {
-        case 'srt':
-            return 'application/x-subrip';
-        case 'vtt':
-            return 'text/vtt';
-        case 'json':
-            return 'application/json';
-        default:
-            return 'text/plain';
-    }
-}
 
         // Auth Modal Functions
         function openAuthModal(tab) {
@@ -1320,7 +1221,7 @@ function getMimeType(format) {
             document.getElementById(`${tab}-form`).classList.add('active');
         }
 
-        // Vraie authentification Firebase
+        // Authentification Firebase
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
@@ -1439,191 +1340,7 @@ function getMimeType(format) {
             }
         }
 
-        // CORRECTION COMPLÈTE : Mise à jour UI avec gestion du statut de vérification
-        function updateAuthUI() {
-            const userInfo = document.getElementById('user-info');
-            const authButtons = document.getElementById('auth-buttons');
-            const loggedInActions = document.getElementById('logged-in-actions');
-            const subtitlesLocked = document.getElementById('subtitles-locked');
-            const subtitlesAvailable = document.getElementById('subtitles-available');
-            const verificationStatus = document.getElementById('verification-status');
-
-            if (currentUser && currentUser.emailVerified) {
-                // Utilisateur connecté ET vérifié
-                userInfo.style.display = 'flex';
-                authButtons.style.display = 'none';
-                loggedInActions.style.display = 'block';
-                
-                document.getElementById('user-email').textContent = currentUser.email;
-                document.getElementById('user-name').textContent = currentUser.displayName || 'Utilisateur vérifié';
-                document.getElementById('user-avatar').textContent = currentUser.email.charAt(0).toUpperCase();
-                
-                // Masquer le statut de vérification
-                if (verificationStatus) verificationStatus.style.display = 'none';
-                
-                // Débloquer les fonctionnalités premium
-                if (subtitlesLocked) subtitlesLocked.style.display = 'none';
-                if (subtitlesAvailable) subtitlesAvailable.style.display = 'block';
-                
-            } else if (currentUser && !currentUser.emailVerified) {
-                // Utilisateur connecté mais NON vérifié
-                userInfo.style.display = 'flex';
-                authButtons.style.display = 'none';
-                loggedInActions.style.display = 'block';
-                
-                document.getElementById('user-email').textContent = currentUser.email;
-                document.getElementById('user-name').textContent = 'Utilisateur non vérifié';
-                document.getElementById('user-avatar').textContent = '!';
-                document.getElementById('user-avatar').style.backgroundColor = '#ff6b6b';
-                
-                // Afficher le statut de vérification avec bouton
-                if (verificationStatus) verificationStatus.style.display = 'block';
-                
-                // Garder les fonctionnalités verrouillées
-                if (subtitlesLocked) {
-                    subtitlesLocked.style.display = 'block';
-                    subtitlesLocked.innerHTML = `
-                        <div class="lock-icon">🔒</div>
-                        <h3>Email non vérifié</h3>
-                        <p>Vérifiez votre email pour accéder aux fonctionnalités premium</p>
-                        <button onclick="resendVerificationEmail()" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 20px; margin-top: 10px; cursor: pointer;">
-                            Renvoyer email de vérification
-                        </button>
-                    `;
-                }
-                if (subtitlesAvailable) subtitlesAvailable.style.display = 'none';
-                
-            } else {
-                // Non connecté
-                userInfo.style.display = 'none';
-                authButtons.style.display = 'flex';
-                loggedInActions.style.display = 'none';
-                
-                if (verificationStatus) verificationStatus.style.display = 'none';
-                
-                // Remettre le message par défaut pour les non-connectés
-                if (subtitlesLocked) {
-                    subtitlesLocked.innerHTML = `
-                        <div class="lock-icon">🔒</div>
-                        <h3>Fonctionnalité Premium</h3>
-                        <p>Connectez-vous pour accéder au téléchargement des sous-titres</p>
-                    `;
-                    subtitlesLocked.style.display = 'block';
-                }
-                if (subtitlesAvailable) subtitlesAvailable.style.display = 'none';
-            }
-        }
-
-        // NOUVEAU : Fonction pour renvoyer email de vérification avec feedback
-        async function resendVerificationEmail() {
-            if (!currentUser) {
-                showError('Aucun utilisateur connecté');
-                return;
-            }
-            
-            if (currentUser.emailVerified) {
-                showSuccess('Email déjà vérifié !');
-                return;
-            }
-            
-            try {
-                await currentUser.sendEmailVerification({
-                    url: window.location.origin,
-                    handleCodeInApp: false
-                });
-                showSuccess('Email de vérification renvoyé ! Vérifiez votre boîte mail (et les spams).');
-                
-                // Optionnel : recharger les données utilisateur après un délai
-                setTimeout(async () => {
-                    await currentUser.reload();
-                    updateAuthUI();
-                }, 2000);
-                
-            } catch (error) {
-                console.error('Erreur renvoi email:', error);
-                let message = 'Erreur lors de l\'envoi';
-                
-                switch (error.code) {
-                    case 'auth/too-many-requests':
-                        message = 'Trop de demandes. Attendez avant de réessayer.';
-                        break;
-                    case 'auth/user-disabled':
-                        message = 'Compte utilisateur désactivé';
-                        break;
-                    default:
-                        message = `Erreur : ${error.message}`;
-                }
-                
-                showError(message);
-            }
-        }
-
-        // NOUVEAU : Fonction pour vérifier périodiquement si l'email a été vérifié
-        function startEmailVerificationCheck() {
-            if (!currentUser || currentUser.emailVerified) {
-                return;
-            }
-            
-            const checkInterval = setInterval(async () => {
-                try {
-                    await currentUser.reload();
-                    
-                    if (currentUser.emailVerified) {
-                        clearInterval(checkInterval);
-                        showSuccess('Email vérifié avec succès ! Fonctionnalités premium débloquées.');
-                        updateAuthUI();
-                    }
-                } catch (error) {
-                    console.error('Erreur vérification:', error);
-                    clearInterval(checkInterval);
-                }
-            }, 30000); // Vérifier toutes les 30 secondes
-            
-            // Arrêter après 10 minutes
-            setTimeout(() => {
-                clearInterval(checkInterval);
-            }, 600000);
-        }
-
-        // Modifier l'observer d'authentification pour inclure la vérification périodique
-        auth.onAuthStateChanged((user) => {
-            console.log('État auth changé:', user);
-            currentUser = user;
-            updateAuthUI();
-            
-            if (user && !user.emailVerified) {
-                showError('Veuillez vérifier votre email avant d\'accéder aux fonctionnalités premium');
-                startEmailVerificationCheck(); // Commencer la vérification périodique
-            }
-        });
-
-        // Fonctions utilitaires
-        function getVideoId(url) {
-            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[7].length == 11) ? match[7] : null;
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('show');
-            setTimeout(() => errorDiv.classList.remove('show'), 5000);
-        }
-
-        function showSuccess(message) {
-            const successDiv = document.getElementById('success-message');
-            successDiv.textContent = message;
-            successDiv.classList.add('show');
-            setTimeout(() => successDiv.classList.remove('show'), 3000);
-        }
-
-        function hideMessages() {
-            document.getElementById('error-message').classList.remove('show');
-            document.getElementById('success-message').classList.remove('show');
-        }
-
-        //
+        // Fonction pour renvoyer email de vérification
         async function resendVerificationEmail() {
             if (!currentUser) {
                 showError('Aucun utilisateur connecté');
@@ -1683,6 +1400,31 @@ function getMimeType(format) {
             }, 600000);
         }
 
+        // Fonctions utilitaires
+        function getVideoId(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : null;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.classList.add('show');
+            setTimeout(() => successDiv.classList.remove('show'), 3000);
+        }
+
+        function hideMessages() {
+            document.getElementById('error-message').classList.remove('show');
+            document.getElementById('success-message').classList.remove('show');
+        }
 
         // Fonction principale d'analyse
         async function analyzeVideo() {
@@ -1704,7 +1446,6 @@ function getMimeType(format) {
             showLoading(true);
             
             try {
-                // Récupérer les métadonnées via API YouTube
                 const videoData = await fetchVideoMetadata(videoId);
                 
                 if (videoData) {
@@ -1712,7 +1453,6 @@ function getMimeType(format) {
                     generateThumbnails(videoId);
                     currentVideoData = videoData;
                 } else {
-                    // Fallback si pas d'API key
                     displayBasicInfo(videoId);
                     generateThumbnails(videoId);
                 }
@@ -1749,7 +1489,6 @@ function getMimeType(format) {
 
         function displayVideoInfo(videoData) {
             const snippet = videoData.snippet;
-            const statistics = videoData.statistics;
             
             document.getElementById('video-title-display').innerHTML = `
                 ${snippet.title}
@@ -1761,7 +1500,6 @@ function getMimeType(format) {
                 <button class="copy-btn" onclick="copyText('video-description')">Copier</button>
             `;
             
-            // Afficher les tags
             const tagsContainer = document.getElementById('tags-container');
             if (snippet.tags && snippet.tags.length > 0) {
                 tagsContainer.innerHTML = snippet.tags.map(tag => 
@@ -1910,7 +1648,7 @@ function getMimeType(format) {
 
         // Service Worker pour PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service_worker.js')
+            navigator.serviceWorker.register('/service-worker.js')
                 .then(() => console.log('Service Worker enregistré'))
                 .catch(() => console.log('Erreur Service Worker'));
         }
@@ -1919,12 +1657,50 @@ function getMimeType(format) {
         document.addEventListener('DOMContentLoaded', function() {
             updateAuthUI();
             
-            // Simuler la détection d'un utilisateur connecté (remplacez par vraie logique Firebase)
-            // auth.onAuthStateChanged((user) => {
-            //     currentUser = user;
-            //     updateAuthUI();
-            // });
+            // Ajouter un bouton de test temporaire pour déboguer
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                const testBtn = document.createElement('button');
+                testBtn.textContent = '🧪 Test API Sous-titres';
+                testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:orange;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;';
+                testBtn.onclick = testSubtitlesAPI;
+                document.body.appendChild(testBtn);
+            }
         });
+
+        // Fonction pour tester la nouvelle API
+        async function testSubtitlesAPI() {
+            try {
+                showLoading(true);
+                const response = await fetch('/.netlify/functions/subtitles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up
+                        format: 'json',
+                        language: 'en'
+                    })
+                });
+                
+                console.log('Test API - Status:', response.status);
+                
+                if (response.ok) {
+                    const content = await response.text();
+                    console.log('Test API - Succès:', content.substring(0, 200) + '...');
+                    showSuccess('Test API réussi ! Fonction sous-titres opérationnelle.');
+                } else {
+                    const error = await response.json();
+                    console.log('Test API - Erreur:', error);
+                    showError(`Test API échoué: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Test API - Exception:', error);
+                showError(`Erreur test API: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
     </script>
 </body>
 </html>
