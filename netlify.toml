@@ -1,11 +1,11 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "echo 'Build completed'"
+  command = "npm install"
 
 [build.environment]
   NODE_VERSION = "18"
-  PYTHON_VERSION = "3.9"
+  NODE_ENV = "production"
 
 [[redirects]]
   from = "/api/*"
@@ -19,11 +19,41 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["googleapis"]
+  external_node_modules = []
 
-# Configuration Python correcte
-[functions.python_settings]
-  python_version = "3.9"
-
+# Configuration spécifique pour la fonction subtitles
 [functions."subtitles"]
   timeout = 30
+  memory = 512
+  node_bundler = "esbuild"
+
+# Headers de sécurité globaux
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Headers spécifiques pour les functions
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Configuration des redirections d'erreur
+[[redirects]]
+  from = "/404"
+  to = "/index.html"
+  status = 200
+
+# Variables d'environnement (à définir dans l'interface Netlify)
+[context.production.environment]
+  NODE_ENV = "production"
+
+[context.development.environment]
+  NODE_ENV = "development"

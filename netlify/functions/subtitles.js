@@ -1,355 +1,532 @@
-// netlify/functions/subtitles.js - VERSION CORRIGÉE
+// netlify/functions/subtitles.js - VERSION AVEC DEBUGGING AMÉLIORÉ
 const https = require('https');
 const { URL } = require('url');
 
+// Configuration globale avec logging amélioré
+const CONFIG = {
+  DEBUG: process.env.NODE_ENV !== 'production',
+  MAX_REQUEST_SIZE: 10 * 1024 * 1024, // 10MB
+  TIMEOUT: 25000, // 25s (Netlify a une limite de 30s)
+  MAX_RETRIES: 2,
+  USER_AGENTS: [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  ]
+};
+
+// Logger avec différents niveaux
+function log(level, message, data = null) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+  
+  console.log(logMessage);
+  if (data && CONFIG.DEBUG) {
+    console.log('Data:', JSON.stringify(data, null, 2).substring(0, 500));
+  }
+}
+
 exports.handler = async (event, context) => {
+  const startTime = Date.now();
+  
+  // Headers CORS obligatoires
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Cache-Control': 'no-cache'
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'X-Content-Type-Options': 'nosniff'
   };
 
-  // Gestion CORS
+  // Préflight CORS
   if (event.httpMethod === 'OPTIONS') {
+    log('info', 'Preflight CORS request');
     return { statusCode: 200, headers, body: '' };
   }
 
+  // Validation méthode HTTP
   if (event.httpMethod !== 'POST') {
+    log('warn', `Méthode non supportée: ${event.httpMethod}`);
     return {
       statusCode: 405,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Méthode non autorisée' })
+      body: JSON.stringify({ 
+        error: 'Méthode non autorisée',
+        allowed: ['POST'],
+        received: event.httpMethod 
+      })
     };
   }
 
-  let requestData;
+  let requestId = Math.random().toString(36).substring(7);
+  log('info', `Nouvelle requête [${requestId}]`, { 
+    method: event.httpMethod,
+    bodySize: event.body?.length || 0 
+  });
+
+  // Parsing du body avec validation
+  let requestData = {};
   try {
-    requestData = JSON.parse(event.body || '{}');
+    if (!event.body) {
+      throw new Error('Body vide');
+    }
+    
+    requestData = JSON.parse(event.body);
+    log('debug', `Body parsé [${requestId}]`, requestData);
+    
   } catch (parseError) {
+    log('error', `Erreur parsing JSON [${requestId}]`, parseError.message);
     return {
       statusCode: 400,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'JSON invalide' })
+      body: JSON.stringify({ 
+        error: 'JSON invalide',
+        details: parseError.message,
+        requestId
+      })
     };
   }
 
+  // Extraction et validation des paramètres
   const { videoId, format = 'srt', language = 'fr' } = requestData;
 
-  // Validation stricte de l'ID vidéo
-  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-    return {
-      statusCode: 400,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'ID vidéo YouTube invalide' })
-    };
+  // Validation stricte de l'ID vidéo YouTube
+  if (!videoId) {
+    log('warn', `VideoID manquant [${requestId}]`);
+    return createErrorResponse(400, 'VideoID requis', requestId, headers);
   }
 
-  console.log(`Extraction pour: ${videoId}, format: ${format}, langue: ${language}`);
+  if (typeof videoId !== 'string' || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    log('warn', `VideoID invalide [${requestId}]: ${videoId}`);
+    return createErrorResponse(400, `ID vidéo YouTube invalide: "${videoId}"`, requestId, headers);
+  }
+
+  // Validation format
+  const allowedFormats = ['srt', 'vtt', 'txt', 'json'];
+  if (!allowedFormats.includes(format.toLowerCase())) {
+    log('warn', `Format invalide [${requestId}]: ${format}`);
+    return createErrorResponse(400, `Format non supporté: ${format}. Autorisés: ${allowedFormats.join(', ')}`, requestId, headers);
+  }
+
+  // Validation langue
+  if (typeof language !== 'string' || language.length > 10) {
+    log('warn', `Langue invalide [${requestId}]: ${language}`);
+    return createErrorResponse(400, `Code langue invalide: ${language}`, requestId, headers);
+  }
+
+  log('info', `Démarrage extraction [${requestId}]`, { videoId, format, language });
 
   try {
-    const subtitles = await extractSubtitlesFromYoutube(videoId, language);
+    // Extraction des sous-titres avec gestion d'erreur robuste
+    const subtitles = await extractSubtitlesWithRetry(videoId, language, requestId);
     
     if (!subtitles || subtitles.length === 0) {
-      return {
-        statusCode: 404,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          error: 'Aucun sous-titre trouvé pour cette vidéo',
-          videoId: videoId,
-          language: language
-        })
-      };
+      log('warn', `Aucun sous-titre trouvé [${requestId}]`);
+      return createErrorResponse(404, 'Aucun sous-titre disponible pour cette vidéo', requestId, headers, {
+        videoId,
+        language,
+        suggestions: [
+          'Vérifiez que la vidéo existe',
+          'Essayez avec language="auto" ou "en"',
+          'Cette vidéo peut ne pas avoir de sous-titres'
+        ]
+      });
     }
 
+    // Conversion au format demandé
     const convertedContent = convertSubtitles(subtitles, format);
+    const duration = Date.now() - startTime;
     
-    console.log(`Succès: ${subtitles.length} segments extraits`);
+    log('info', `Succès extraction [${requestId}]`, { 
+      segments: subtitles.length,
+      size: convertedContent.length,
+      duration: `${duration}ms`
+    });
 
     return {
       statusCode: 200,
       headers: {
         ...headers,
         'Content-Type': getContentType(format),
-        'Content-Disposition': `attachment; filename="${videoId}_subtitles.${format}"`
+        'Content-Disposition': `attachment; filename="${videoId}_subtitles.${format}"`,
+        'X-Request-ID': requestId,
+        'X-Processing-Time': `${duration}ms`,
+        'X-Segments-Count': subtitles.length.toString()
       },
       body: convertedContent
     };
 
   } catch (error) {
-    console.error(`Erreur extraction ${videoId}:`, error.message);
-    
-    return {
-      statusCode: 500,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        error: 'Erreur lors de l\'extraction des sous-titres',
-        details: process.env.NODE_ENV === 'development' ? error.message : 'Erreur interne',
-        videoId: videoId
-      })
-    };
+    const duration = Date.now() - startTime;
+    log('error', `Erreur extraction [${requestId}]`, {
+      message: error.message,
+      stack: CONFIG.DEBUG ? error.stack : undefined,
+      duration: `${duration}ms`
+    });
+
+    // Classification de l'erreur
+    let statusCode = 500;
+    let userMessage = 'Erreur interne du serveur';
+
+    if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+      statusCode = 408;
+      userMessage = 'Délai d\'attente dépassé';
+    } else if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+      statusCode = 503;
+      userMessage = 'Service YouTube temporairement indisponible';
+    } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+      statusCode = 403;
+      userMessage = 'Accès refusé par YouTube';
+    } else if (error.message.includes('404') || error.message.includes('not found')) {
+      statusCode = 404;
+      userMessage = 'Vidéo non trouvée';
+    }
+
+    return createErrorResponse(statusCode, userMessage, requestId, headers, {
+      technical: CONFIG.DEBUG ? error.message : 'Erreur technique masquée en production',
+      duration: `${duration}ms`
+    });
   }
 };
 
-// Nouvelle approche d'extraction plus robuste
-async function extractSubtitlesFromYoutube(videoId, language) {
-  console.log(`Début extraction pour ${videoId}, langue: ${language}`);
+// Fonction helper pour créer les réponses d'erreur
+function createErrorResponse(statusCode, message, requestId, headers, extra = {}) {
+  return {
+    statusCode,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      error: message,
+      requestId,
+      timestamp: new Date().toISOString(),
+      ...extra
+    })
+  };
+}
+
+// Extraction avec retry et fallbacks
+async function extractSubtitlesWithRetry(videoId, language, requestId, attempt = 1) {
+  const maxAttempts = CONFIG.MAX_RETRIES + 1;
   
   try {
-    // 1. Récupérer la page de la vidéo
-    const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=${language || 'en'}`;
+    log('info', `Tentative ${attempt}/${maxAttempts} [${requestId}]`);
     
-    const pageHtml = await makeHttpsRequest(watchUrl, {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    return await extractSubtitlesFromYoutube(videoId, language, requestId);
+    
+  } catch (error) {
+    log('warn', `Échec tentative ${attempt} [${requestId}]: ${error.message}`);
+    
+    if (attempt < maxAttempts) {
+      // Attendre avant de réessayer (backoff exponentiel)
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+      log('info', `Retry dans ${delay}ms [${requestId}]`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return extractSubtitlesWithRetry(videoId, language, requestId, attempt + 1);
+    }
+    
+    throw error;
+  }
+}
+
+// Extraction principale avec timeout et logging détaillé
+async function extractSubtitlesFromYoutube(videoId, language, requestId) {
+  const steps = [];
+  
+  try {
+    // Étape 1: Récupération de la page YouTube
+    steps.push('fetch_page');
+    log('debug', `Étape: récupération page [${requestId}]`);
+    
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=${language || 'en'}&gl=US`;
+    const userAgent = CONFIG.USER_AGENTS[Math.floor(Math.random() * CONFIG.USER_AGENTS.length)];
+    
+    const pageHtml = await makeSecureHttpRequest(watchUrl, {
+      'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': `${language || 'en'},en;q=0.5`,
+      'Accept-Language': `${language || 'en'}-US,${language || 'en'};q=0.5`,
       'Accept-Encoding': 'identity',
       'Cache-Control': 'no-cache',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
       'Upgrade-Insecure-Requests': '1'
-    });
+    }, CONFIG.TIMEOUT);
 
-    if (!pageHtml || pageHtml.length < 1000) {
-      throw new Error('Page YouTube non accessible ou vide');
+    if (!pageHtml || pageHtml.length < 5000) {
+      throw new Error(`Page YouTube invalide ou vide (${pageHtml?.length || 0} chars)`);
     }
 
-    // 2. Extraire les données de configuration des sous-titres
-    const captionsData = extractCaptionTracksFromHtml(pageHtml);
+    log('debug', `Page récupérée [${requestId}]: ${pageHtml.length} chars`);
+
+    // Étape 2: Extraction des données de sous-titres
+    steps.push('extract_captions');
+    log('debug', `Étape: extraction captions data [${requestId}]`);
+    
+    const captionsData = extractCaptionTracksFromHtml(pageHtml, requestId);
     
     if (!captionsData || captionsData.length === 0) {
-      throw new Error('Aucune piste de sous-titres trouvée dans la page');
+      throw new Error('Aucune piste de sous-titres trouvée dans la page YouTube');
     }
 
-    console.log(`Trouvé ${captionsData.length} pistes de sous-titres`);
+    log('info', `${captionsData.length} pistes trouvées [${requestId}]`);
 
-    // 3. Sélectionner la meilleure piste
-    const selectedTrack = selectBestCaptionTrack(captionsData, language);
+    // Étape 3: Sélection de la meilleure piste
+    steps.push('select_track');
+    const selectedTrack = selectBestCaptionTrack(captionsData, language, requestId);
     
     if (!selectedTrack) {
-      const availableLangs = captionsData.map(t => t.languageCode).join(', ');
-      throw new Error(`Aucune piste appropriée pour "${language}". Disponibles: ${availableLangs}`);
+      const availableLangs = captionsData.map(t => t.languageCode || 'unknown').join(', ');
+      throw new Error(`Aucune piste appropriée trouvée. Langues disponibles: ${availableLangs}`);
     }
 
-    console.log(`Piste sélectionnée: ${selectedTrack.languageCode} (${selectedTrack.kind || 'manual'})`);
+    log('info', `Piste sélectionnée [${requestId}]: ${selectedTrack.languageCode} (${selectedTrack.kind || 'manual'})`);
 
-    // 4. Télécharger les sous-titres au format XML
-    const xmlUrl = buildSubtitleUrl(selectedTrack.baseUrl);
-    const xmlContent = await makeHttpsRequest(xmlUrl, {
-      'User-Agent': 'Mozilla/5.0 (compatible; SubtitleBot/1.0)',
+    // Étape 4: Construction URL et téléchargement XML
+    steps.push('download_xml');
+    const xmlUrl = buildOptimalSubtitleUrl(selectedTrack.baseUrl);
+    
+    log('debug', `Téléchargement XML [${requestId}]`);
+    
+    const xmlContent = await makeSecureHttpRequest(xmlUrl, {
+      'User-Agent': userAgent,
       'Accept': 'application/xml, text/xml, */*',
-      'Referer': 'https://www.youtube.com/'
-    });
+      'Accept-Language': `${language || 'en'}`,
+      'Referer': 'https://www.youtube.com/',
+      'Cache-Control': 'no-cache'
+    }, CONFIG.TIMEOUT);
 
-    if (!xmlContent || xmlContent.length < 50) {
-      throw new Error('Contenu XML des sous-titres vide ou invalide');
+    if (!xmlContent || xmlContent.length < 100) {
+      throw new Error(`XML sous-titres vide ou invalide (${xmlContent?.length || 0} chars)`);
     }
 
-    // 5. Parser le XML et extraire les segments
-    const subtitles = parseYouTubeXmlSubtitles(xmlContent);
+    // Étape 5: Parsing et nettoyage
+    steps.push('parse_xml');
+    log('debug', `Parsing XML [${requestId}]: ${xmlContent.length} chars`);
+    
+    const subtitles = parseAndCleanSubtitles(xmlContent, requestId);
     
     if (!subtitles || subtitles.length === 0) {
       throw new Error('Aucun segment de sous-titre extrait du XML');
     }
 
-    console.log(`${subtitles.length} segments extraits avec succès`);
+    log('info', `Extraction réussie [${requestId}]: ${subtitles.length} segments`);
     return subtitles;
 
   } catch (error) {
-    console.error('Erreur dans extractSubtitlesFromYoutube:', error.message);
-    throw error;
+    const failedStep = steps[steps.length - 1] || 'unknown';
+    const enhancedError = new Error(`Échec étape '${failedStep}': ${error.message}`);
+    enhancedError.step = failedStep;
+    enhancedError.steps = steps;
+    throw enhancedError;
   }
 }
 
-// Extraction améliorée des pistes de sous-titres
-function extractCaptionTracksFromHtml(html) {
+// Extraction robuste des données de captions avec multiples patterns
+function extractCaptionTracksFromHtml(html, requestId) {
   const patterns = [
-    // Pattern principal pour ytInitialPlayerResponse
-    /ytInitialPlayerResponse\s*=\s*({.+?});/s,
-    // Pattern alternatif
-    /var\s+ytInitialPlayerResponse\s*=\s*({.+?});/s,
-    // Pattern dans les scripts
-    /"captions":\s*{[^}]*"playerCaptionsTracklistRenderer":\s*{[^}]*"captionTracks":\s*(\[.+?\])/s
+    // Pattern principal ytInitialPlayerResponse
+    {
+      name: 'ytInitialPlayerResponse_main',
+      regex: /ytInitialPlayerResponse\s*=\s*({.+?});(?:\s*var|\s*window|\s*if|\s*<)/s
+    },
+    // Pattern dans window
+    {
+      name: 'window_ytInitialPlayerResponse', 
+      regex: /window\["ytInitialPlayerResponse"\]\s*=\s*({.+?});/s
+    },
+    // Pattern direct captionTracks
+    {
+      name: 'direct_captionTracks',
+      regex: /"captionTracks":\s*(\[[^\]]+\])/s
+    },
+    // Pattern dans playerCaptionsTracklistRenderer
+    {
+      name: 'tracklistRenderer',
+      regex: /"playerCaptionsTracklistRenderer":\s*{[^}]*"captionTracks":\s*(\[.+?\])/s
+    }
   ];
 
   for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      try {
-        if (match[1].startsWith('[')) {
-          // Directement un array de pistes
-          return JSON.parse(match[1]);
-        } else {
-          // Objet complet ytInitialPlayerResponse
-          const playerResponse = JSON.parse(match[1]);
-          
-          const captions = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-          if (captions && Array.isArray(captions)) {
-            return captions;
-          }
-        }
-      } catch (parseError) {
-        console.log(`Erreur parsing pattern: ${parseError.message}`);
-        continue;
-      }
-    }
-  }
-
-  // Méthode de fallback: recherche plus générale
-  const fallbackMatch = html.match(/"captionTracks":\s*(\[[^\]]+\])/);
-  if (fallbackMatch) {
     try {
-      return JSON.parse(fallbackMatch[1]);
-    } catch (e) {
-      console.log('Erreur fallback parsing:', e.message);
+      const match = html.match(pattern.regex);
+      if (match) {
+        log('debug', `Pattern trouvé [${requestId}]: ${pattern.name}`);
+        
+        let data;
+        if (pattern.name === 'direct_captionTracks' || pattern.name === 'tracklistRenderer') {
+          data = JSON.parse(match[1]);
+        } else {
+          const parsed = JSON.parse(match[1]);
+          data = parsed?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        }
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+          log('info', `${data.length} pistes extraites via ${pattern.name} [${requestId}]`);
+          return data;
+        }
+      }
+    } catch (parseError) {
+      log('debug', `Erreur pattern ${pattern.name} [${requestId}]: ${parseError.message}`);
+      continue;
     }
   }
 
+  log('warn', `Aucun pattern de caption trouvé [${requestId}]`);
   return [];
 }
 
-// Sélection intelligente de la meilleure piste
-function selectBestCaptionTrack(tracks, requestedLanguage) {
+// Sélection optimisée de la piste avec logging
+function selectBestCaptionTrack(tracks, requestedLanguage, requestId) {
   if (!tracks || tracks.length === 0) return null;
 
   const lang = requestedLanguage || 'en';
-  console.log(`Langues disponibles: ${tracks.map(t => `${t.languageCode}(${t.kind || 'manual'})`).join(', ')}`);
+  const available = tracks.map(t => `${t.languageCode}(${t.kind || 'manual'})`).join(', ');
+  log('debug', `Sélection piste [${requestId}] - Demandé: ${lang}, Disponible: ${available}`);
 
-  // Priorité 1: Langue exacte + sous-titres manuels
-  let track = tracks.find(t => 
-    t.languageCode === lang && (!t.kind || t.kind !== 'asr')
-  );
+  // Priorités avec logging
+  const priorities = [
+    { name: 'exact_manual', fn: t => t.languageCode === lang && (!t.kind || t.kind !== 'asr') },
+    { name: 'exact_any', fn: t => t.languageCode === lang },
+    { name: 'regional_variant', fn: t => t.languageCode && t.languageCode.startsWith(lang + '-') },
+    { name: 'language_prefix', fn: t => t.languageCode && t.languageCode.startsWith(lang) },
+    { name: 'english_fallback', fn: t => lang !== 'en' && t.languageCode && (t.languageCode === 'en' || t.languageCode.startsWith('en-')) },
+    { name: 'first_available', fn: () => true }
+  ];
 
-  // Priorité 2: Langue exacte (même auto-générés)
-  if (!track) {
-    track = tracks.find(t => t.languageCode === lang);
+  for (const priority of priorities) {
+    const track = tracks.find(priority.fn);
+    if (track) {
+      log('info', `Piste sélectionnée [${requestId}]: ${track.languageCode} via ${priority.name}`);
+      return track;
+    }
   }
 
-  // Priorité 3: Langue avec variante régionale (ex: en-US pour en)
-  if (!track) {
-    track = tracks.find(t => 
-      t.languageCode && t.languageCode.startsWith(lang + '-')
-    );
-  }
-
-  // Priorité 4: Préfixe de langue (ex: fr-CA pour fr)
-  if (!track) {
-    track = tracks.find(t => 
-      t.languageCode && t.languageCode.startsWith(lang)
-    );
-  }
-
-  // Priorité 5: Anglais comme fallback universel
-  if (!track && lang !== 'en') {
-    track = tracks.find(t => 
-      t.languageCode && (t.languageCode === 'en' || t.languageCode.startsWith('en-'))
-    );
-  }
-
-  // Priorité 6: Première piste disponible
-  if (!track) {
-    track = tracks[0];
-  }
-
-  return track;
+  return null;
 }
 
-// Construction de l'URL des sous-titres avec les bons paramètres
-function buildSubtitleUrl(baseUrl) {
-  if (!baseUrl) throw new Error('URL de base manquante');
+// Construction d'URL optimisée
+function buildOptimalSubtitleUrl(baseUrl) {
+  if (!baseUrl) throw new Error('URL de base manquante pour les sous-titres');
 
   try {
     const url = new URL(baseUrl);
     
-    // Paramètres optimaux pour l'extraction
-    url.searchParams.set('fmt', 'srv3'); // Format de service le plus compatible
-    url.searchParams.set('tlang', ''); // Pas de traduction
-    url.searchParams.delete('kind'); // Supprimer restrictions
+    // Paramètres optimaux testés
+    url.searchParams.set('fmt', 'srv3');
+    url.searchParams.delete('tlang');
+    url.searchParams.delete('kind');
+    url.searchParams.delete('v'); // Éviter les conflits de version
     
     return url.toString();
   } catch (error) {
-    throw new Error(`URL invalide: ${error.message}`);
+    throw new Error(`URL de sous-titres invalide: ${error.message}`);
   }
 }
 
-// Parser XML YouTube amélioré
-function parseYouTubeXmlSubtitles(xmlString) {
+// Parsing XML avec validation et nettoyage renforcés
+function parseAndCleanSubtitles(xmlString, requestId) {
   const subtitles = [];
   
-  // Nettoyer le XML au préalable
+  if (!xmlString || typeof xmlString !== 'string') {
+    throw new Error('XML des sous-titres vide ou invalide');
+  }
+
+  // Nettoyage préliminaire du XML
   const cleanXml = xmlString
     .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n');
+    .replace(/\r/g, '\n')
+    .trim();
 
-  // Pattern principal pour les éléments <text>
+  // Pattern robuste pour les éléments <text>
   const textRegex = /<text\s+start="([^"]+)"(?:\s+dur="([^"]+)")?[^>]*>(.*?)<\/text>/gs;
   
   let match;
-  let index = 0;
+  let segmentCount = 0;
+  const maxSegments = 5000; // Limite de sécurité
   
-  while ((match = textRegex.exec(cleanXml)) !== null && index < 10000) { // Limite de sécurité
+  while ((match = textRegex.exec(cleanXml)) !== null && segmentCount < maxSegments) {
     try {
       const startTime = parseFloat(match[1]);
       const duration = parseFloat(match[2]) || 3.0;
       let textContent = match[3];
       
-      // Validation du timing
-      if (isNaN(startTime) || startTime < 0) {
-        console.warn(`Timing invalide ignoré: ${match[1]}`);
+      // Validation stricte des timings
+      if (isNaN(startTime) || startTime < 0 || startTime > 86400) { // Max 24h
+        continue;
+      }
+      
+      if (isNaN(duration) || duration <= 0 || duration > 30) { // Max 30s par segment
         continue;
       }
 
-      // Nettoyage approfondi du texte
-      textContent = cleanSubtitleText(textContent);
+      // Nettoyage du texte
+      textContent = cleanAndValidateText(textContent);
       
-      if (textContent && textContent.length > 0) {
+      if (textContent && textContent.length > 0 && textContent.length < 1000) {
         subtitles.push({
           start: Math.max(0, startTime),
-          duration: Math.max(0.5, duration),
+          duration: Math.min(30, Math.max(0.5, duration)),
           end: Math.max(0.5, startTime + duration),
           text: textContent,
-          index: index++
+          index: segmentCount
         });
+        segmentCount++;
       }
+      
     } catch (parseError) {
-      console.warn(`Erreur parsing segment: ${parseError.message}`);
+      log('debug', `Erreur parsing segment [${requestId}]: ${parseError.message}`);
       continue;
     }
   }
 
-  // Tri par temps de début et fusion des segments proches
-  return consolidateSubtitles(subtitles);
+  log('debug', `${segmentCount} segments parsés [${requestId}]`);
+
+  // Post-traitement: tri et fusion
+  return postProcessSubtitles(subtitles, requestId);
 }
 
-// Nettoyage approfondi du texte des sous-titres
-function cleanSubtitleText(rawText) {
-  if (!rawText) return '';
+// Nettoyage de texte renforcé
+function cleanAndValidateText(rawText) {
+  if (!rawText || typeof rawText !== 'string') return '';
   
-  return rawText
+  let cleaned = rawText
     // Supprimer balises HTML/XML
     .replace(/<[^>]*>/g, '')
-    // Décoder entités HTML
+    // Décoder entités HTML courantes
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (match, code) => String.fromCharCode(parseInt(code)))
-    // Nettoyer espaces et sauts de ligne
-    .replace(/\n+/g, ' ')
+    .replace(/&apos;/g, "'")
+    // Décoder entités numériques
+    .replace(/&#(\d+);/g, (match, code) => {
+      try {
+        const num = parseInt(code);
+        return (num > 31 && num < 127) ? String.fromCharCode(num) : ' ';
+      } catch { return ' '; }
+    })
+    // Nettoyer espaces et caractères de contrôle
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^\s+|\s+$/g, '')
-    // Supprimer caractères de contrôle
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
+    .trim();
+
+  // Validation finale
+  if (cleaned.length < 1 || cleaned.length > 500) return '';
+  if (/^[\s\W]*$/.test(cleaned)) return '';
+  
+  return cleaned;
 }
 
-// Consolidation et fusion intelligente des segments
-function consolidateSubtitles(subtitles) {
+// Post-traitement avec consolidation intelligente
+function postProcessSubtitles(subtitles, requestId) {
   if (!subtitles || subtitles.length === 0) return [];
 
   // Tri par temps de début
   subtitles.sort((a, b) => a.start - b.start);
 
-  const consolidated = [];
+  const processed = [];
   let current = null;
 
   for (const subtitle of subtitles) {
@@ -358,30 +535,35 @@ function consolidateSubtitles(subtitles) {
       continue;
     }
 
-    // Fusionner si les segments se chevauchent ou sont très proches (< 0.5s)
     const gap = subtitle.start - current.end;
+    const canMerge = gap < 1.0 && 
+                    current.text.length + subtitle.text.length < 400 &&
+                    !current.text.endsWith('.') &&
+                    !current.text.endsWith('!') &&
+                    !current.text.endsWith('?');
     
-    if (gap < 0.5 && current.text.length + subtitle.text.length < 200) {
-      // Fusion
-      current.text += (gap > 0 ? ' ' : '') + subtitle.text;
+    if (canMerge) {
+      // Fusion intelligente
+      const separator = gap > 0.2 ? ' ' : '';
+      current.text += separator + subtitle.text;
       current.end = Math.max(current.end, subtitle.end);
       current.duration = current.end - current.start;
     } else {
       // Nouveau segment
-      consolidated.push(current);
+      processed.push(current);
       current = { ...subtitle };
     }
   }
 
-  // Ajouter le dernier segment
   if (current) {
-    consolidated.push(current);
+    processed.push(current);
   }
 
-  return consolidated;
+  log('debug', `Post-traitement [${requestId}]: ${subtitles.length} -> ${processed.length} segments`);
+  return processed;
 }
 
-// Conversions de format améliorées
+// Conversion avec validation
 function convertSubtitles(subtitles, format) {
   if (!subtitles || subtitles.length === 0) {
     return format === 'json' ? '[]' : '';
@@ -416,12 +598,14 @@ function convertToVtt(subtitles) {
 }
 
 function convertToTxt(subtitles) {
-  return subtitles.map(entry => entry.text).filter(text => text.trim()).join('\n\n');
+  return subtitles
+    .map(entry => entry.text)
+    .filter(text => text && text.trim())
+    .join('\n\n');
 }
 
-// Formatage temporel précis
 function formatSrtTime(seconds) {
-  const totalMs = Math.round(seconds * 1000);
+  const totalMs = Math.round(Math.max(0, seconds) * 1000);
   const hours = Math.floor(totalMs / 3600000);
   const minutes = Math.floor((totalMs % 3600000) / 60000);
   const secs = Math.floor((totalMs % 60000) / 1000);
@@ -445,9 +629,12 @@ function getContentType(format) {
   return types[format.toLowerCase()] || 'text/plain; charset=utf-8';
 }
 
-// Fonction HTTP robuste avec gestion des erreurs
-function makeHttpsRequest(url, headers = {}, timeout = 30000) {
+// Requête HTTP sécurisée avec retry et timeout strict
+function makeSecureHttpRequest(url, headers = {}, timeout = 25000) {
   return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    let finished = false;
+    
     const parsedUrl = new URL(url);
     
     const options = {
@@ -466,47 +653,77 @@ function makeHttpsRequest(url, headers = {}, timeout = 30000) {
       rejectUnauthorized: true
     };
 
+    const timeoutId = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        reject(new Error(`TIMEOUT après ${timeout}ms pour ${url}`));
+      }
+    }, timeout);
+
     const req = https.request(options, (res) => {
-      // Gestion des redirections
+      if (finished) return;
+      
+      // Gestion redirections
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        console.log(`Redirection vers: ${res.headers.location}`);
-        return resolve(makeHttpsRequest(res.headers.location, headers, timeout));
+        clearTimeout(timeoutId);
+        return resolve(makeSecureHttpRequest(res.headers.location, headers, timeout));
       }
 
       if (res.statusCode < 200 || res.statusCode >= 400) {
-        return reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+        finished = true;
+        clearTimeout(timeoutId);
+        return reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage} for ${url}`));
       }
 
       let data = '';
+      let size = 0;
+      
       res.setEncoding('utf8');
       
       res.on('data', chunk => {
-        data += chunk;
-        // Protection contre les réponses trop volumineuses
-        if (data.length > 10 * 1024 * 1024) { // 10MB max
+        if (finished) return;
+        
+        size += Buffer.byteLength(chunk, 'utf8');
+        if (size > CONFIG.MAX_REQUEST_SIZE) {
+          finished = true;
+          clearTimeout(timeoutId);
           req.destroy();
-          reject(new Error('Réponse trop volumineuse'));
+          return reject(new Error(`Réponse trop volumineuse: ${size} bytes`));
         }
+        
+        data += chunk;
       });
       
       res.on('end', () => {
-        if (data.length === 0) {
-          reject(new Error('Réponse vide'));
-        } else {
-          resolve(data);
-        }
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeoutId);
+        
+        const duration = Date.now() - startTime;
+        log('debug', `HTTP OK: ${url} (${duration}ms, ${data.length} chars)`);
+        
+        resolve(data);
       });
 
       res.on('error', error => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timeoutId);
         reject(new Error(`Response error: ${error.message}`));
       });
     });
 
     req.on('error', error => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeoutId);
       reject(new Error(`Request error: ${error.message}`));
     });
 
     req.on('timeout', () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeoutId);
       req.destroy();
       reject(new Error(`Request timeout après ${timeout}ms`));
     });
