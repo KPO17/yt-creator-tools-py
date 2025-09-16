@@ -7,9 +7,10 @@
     "dev": "netlify dev",
     "build": "npm install",
     "deploy": "netlify deploy --prod",
-    "install-deps": "npm install googleapis firebase-admin"
+    "install-deps": "npm install @treeee/youtube-caption-extractor googleapis firebase-admin"
   },
   "dependencies": {
+    "@treeee/youtube-caption-extractor": "^1.1.0",
     "googleapis": "^126.0.1",
     "firebase-admin": "^11.11.0"
   },

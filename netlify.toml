@@ -1,7 +1,7 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm install"
+  command = "npm install @treeee/youtube-caption-extractor"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -19,13 +19,14 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = []
+  external_node_modules = ["@treeee/youtube-caption-extractor"]
 
 # Configuration spécifique pour la fonction subtitles
 [functions."subtitles"]
   timeout = 30
-  memory = 512
+  memory = 1024
   node_bundler = "esbuild"
+  external_node_modules = ["@treeee/youtube-caption-extractor"]
 
 # Headers de sécurité globaux
 [[headers]]
@@ -51,7 +52,7 @@
   to = "/index.html"
   status = 200
 
-# Variables d'environnement (à définir dans l'interface Netlify)
+# Variables d'environnement
 [context.production.environment]
   NODE_ENV = "production"
 

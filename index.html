@@ -1062,112 +1062,202 @@
         }
 
         // Fonction downloadSubtitles corrigée
-        async function downloadSubtitles(format) {
-            if (!currentUser) {
-                showError('Connectez-vous pour accéder aux sous-titres');
-                return;
-            }
-            
-            // Accepter les comptes Google ET les emails vérifiés
-            if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
-                showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
-                return;
-            }
-            
-            const url = document.getElementById('youtube-url').value.trim();
-            const videoId = getVideoId(url);
-            
-            if (!videoId) {
-                showError('Aucune vidéo sélectionnée');
-                return;
-            }
+// Fonction downloadSubtitles corrigée avec debugging
+async function downloadSubtitles(format) {
+    if (!currentUser) {
+        showError('Connectez-vous pour accéder aux sous-titres');
+        return;
+    }
+    
+    // Vérification des permissions
+    if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
+        showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
+        return;
+    }
+    
+    const url = document.getElementById('youtube-url').value.trim();
+    const videoId = getVideoId(url);
+    
+    if (!videoId) {
+        showError('Aucune vidéo sélectionnée ou URL invalide');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        console.log('🚀 Début téléchargement sous-titres:', { videoId, format });
+        
+        // Construire l'URL de l'API
+        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? '/.netlify/functions/subtitles'
+            : 'https://ytcreatortools.netlify.app/.netlify/functions/subtitles';
+        
+        console.log('📡 URL API:', apiUrl);
+        
+        const requestBody = {
+            videoId: videoId,
+            format: format,
+            language: getSelectedLanguage()
+        };
+        
+        console.log('📦 Request body:', requestBody);
+        
+        // Faire la requête
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        console.log('📥 Response status:', response.status, response.statusText);
+        console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        // Vérifier le statut de la réponse
+        if (!response.ok) {
+            let errorData;
+            const responseText = await response.text();
+            console.error('❌ Response error body:', responseText);
             
             try {
-                showLoading(true);
-                
-                console.log('Téléchargement sous-titres:', { videoId, format });
-                
-                // Appeler la nouvelle fonction Netlify
+                errorData = JSON.parse(responseText);
+            } catch (e) {
+                errorData = { error: `Erreur HTTP ${response.status}: ${responseText}` };
+            }
+            
+            // Messages d'erreur spécifiques
+            let errorMessage = errorData.error || `Erreur HTTP ${response.status}`;
+            
+            switch (response.status) {
+                case 404:
+                    errorMessage = 'Aucun sous-titre disponible pour cette vidéo ou langue';
+                    break;
+                case 400:
+                    errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
+                    break;
+                case 408:
+                    errorMessage = 'Délai d\'attente dépassé - Réessayez dans quelques secondes';
+                    break;
+                case 500:
+                    errorMessage = 'Erreur serveur - Veuillez réessayer';
+                    break;
+                case 503:
+                    errorMessage = 'Service temporairement indisponible - Réessayez plus tard';
+                    break;
+            }
+            
+            throw new Error(errorMessage);
+        }
+        
+        // Vérifier le type de contenu
+        const contentType = response.headers.get('content-type');
+        console.log('📄 Content-Type:', contentType);
+        
+        // Récupérer le contenu des sous-titres
+        const subtitleContent = await response.text();
+        console.log('📝 Content length:', subtitleContent.length);
+        console.log('📝 Content preview:', subtitleContent.substring(0, 200));
+        
+        if (!subtitleContent || subtitleContent.trim().length === 0) {
+            throw new Error('Contenu des sous-titres vide');
+        }
+        
+        // Créer et télécharger le fichier
+        const mimeType = getMimeType(format);
+        const blob = new Blob([subtitleContent], { type: mimeType });
+        const downloadUrl = URL.createObjectURL(blob);
+        
+        // Générer un nom de fichier propre
+        const fileName = `${getVideoTitle(videoId)}_${format}_${Date.now()}.${format}`;
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Nettoyer
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        
+        console.log('✅ Téléchargement réussi:', fileName);
+        
+        // Afficher une pub et un message de succès
+        showAdModal();
+        showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
+        
+    } catch (error) {
+        console.error('❌ Erreur téléchargement sous-titres:', error);
+        showError(error.message || 'Erreur lors du téléchargement des sous-titres');
+        
+        // Suggestions pour le débogage
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('🔧 Suggestions de débogage:');
+            console.log('1. Vérifiez que Netlify Dev est lancé');
+            console.log('2. Vérifiez les logs de la fonction Netlify');
+            console.log('3. Testez avec une autre vidéo YouTube');
+            console.log('4. Vérifiez votre connexion internet');
+        }
+        
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Fonction pour tester spécifiquement l'API (amélioration de votre fonction de test)
+async function testSubtitlesAPI() {
+    try {
+        showLoading(true);
+        console.log('🧪 Test API Sous-titres - Début');
+        
+        // Tester avec plusieurs vidéos populaires
+        const testVideos = [
+            { id: 'dQw4w9WgXcQ', title: 'Rick Astley - Never Gonna Give You Up' },
+            { id: 'jNQXAC9IVRw', title: 'Me at the zoo (première vidéo YouTube)' },
+            { id: 'hFZFjoX2cGg', title: 'Gangnam Style' }
+        ];
+        
+        for (const video of testVideos) {
+            console.log(`🎯 Test avec: ${video.title} (${video.id})`);
+            
+            try {
                 const response = await fetch('/.netlify/functions/subtitles', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        videoId: videoId,
-                        format: format,
-                        language: getSelectedLanguage()
+                        videoId: video.id,
+                        format: 'json',
+                        language: 'en'
                     })
                 });
                 
-                console.log('Réponse API:', response.status, response.statusText);
+                console.log(`✅ ${video.title}:`, response.status, response.statusText);
                 
-                if (!response.ok) {
-                    let errorData;
-                    try {
-                        errorData = await response.json();
-                    } catch (e) {
-                        errorData = { error: `Erreur HTTP ${response.status}` };
-                    }
-                    
-                    let errorMessage = errorData.error || 'Erreur inconnue';
-                    
-                    // Messages d'erreur spécifiques
-                    switch (response.status) {
-                        case 404:
-                            errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
-                            // Afficher les langues disponibles si présentes
-                            if (errorData.availableLanguages && errorData.availableLanguages.length > 0) {
-                                const langs = errorData.availableLanguages.map(l => l.name || l.code).join(', ');
-                                errorMessage += `. Langues disponibles: ${langs}`;
-                            }
-                            break;
-                        case 400:
-                            errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
-                            break;
-                        case 500:
-                            errorMessage = 'Erreur serveur - Veuillez réessayer';
-                            break;
-                    }
-                    
-                    throw new Error(errorMessage);
+                if (response.ok) {
+                    const content = await response.text();
+                    console.log(`📊 Contenu (${content.length} chars):`, content.substring(0, 100) + '...');
+                    showSuccess(`Test réussi avec: ${video.title}`);
+                    break; // Arrêter au premier succès
+                } else {
+                    const error = await response.text();
+                    console.log(`❌ Erreur ${video.title}:`, error);
                 }
                 
-                // Récupérer le contenu des sous-titres (texte brut)
-                const subtitleContent = await response.text();
-                
-                if (!subtitleContent || subtitleContent.trim().length === 0) {
-                    throw new Error('Contenu des sous-titres vide');
-                }
-                
-                // Créer et télécharger le fichier
-                const mimeType = getMimeType(format);
-                const blob = new Blob([subtitleContent], { type: mimeType });
-                const downloadUrl = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = `${getVideoTitle(videoId)}_subtitles.${format}`;
-                link.style.display = 'none';
-                
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // Nettoyer
-                URL.revokeObjectURL(downloadUrl);
-                
-                // Afficher une pub et un message de succès
-                showAdModal();
-                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
-                
-            } catch (error) {
-                console.error('Erreur téléchargement sous-titres:', error);
-                showError(error.message || 'Erreur lors du téléchargement des sous-titres');
-            } finally {
-                showLoading(false);
+            } catch (videoError) {
+                console.error(`❌ Exception ${video.title}:`, videoError.message);
             }
         }
+        
+    } catch (error) {
+        console.error('❌ Erreur test général:', error);
+        showError(`Erreur test API: ${error.message}`);
+    } finally {
+        showLoading(false);
+    }
+}
 
         // Fonction utilitaire pour obtenir la langue sélectionnée
         function getSelectedLanguage() {
