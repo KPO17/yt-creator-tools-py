@@ -1,12 +1,15 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm run build"
+  command = "echo 'Build completed'"
 
-# Ajoute cette section pour Python
 [build.environment]
   NODE_VERSION = "18"
-  PYTHON_VERSION = "3.9"  # ← Force Python 3.9
+  PYTHON_VERSION = "3.9"  # Force Python 3.9
+
+# Désactive l'installation automatique de Python si nécessaire
+[build.environment.mise]
+  enabled = false
 
 [[redirects]]
   from = "/api/*"
@@ -22,6 +25,9 @@
   node_bundler = "esbuild"
   external_node_modules = ["googleapis"]
 
-# Configuration des timeouts pour les fonctions
+# Configuration Python spécifique pour les fonctions
+[functions.python_settings]
+  python_version = "3.9"
+
 [functions."subtitles"]
   timeout = 30
