@@ -5,8 +5,9 @@
   "main": "index.html",
   "scripts": {
     "dev": "netlify dev",
-    "build": "echo 'Build completed'",
-    "deploy": "netlify deploy --prod"
+    "build": "npm install",
+    "deploy": "netlify deploy --prod",
+    "install-deps": "npm install googleapis firebase-admin"
   },
   "dependencies": {
     "googleapis": "^126.0.1",
@@ -14,6 +15,9 @@
   },
   "devDependencies": {
     "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "repository": {
     "type": "git",
