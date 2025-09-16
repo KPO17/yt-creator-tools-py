@@ -1,11 +1,19 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "pip install -r netlify/functions/requirements.txt"
+  
+  # IMPORTANT: Build command pour installer les dépendances Python
+  command = """
+    echo "Installation des dépendances Python..." &&
+    pip3 install --user -r netlify/functions/requirements.txt &&
+    echo "Build terminé"
+  """
 
 [build.environment]
   NODE_VERSION = "18"
   PYTHON_VERSION = "3.9"
+  # Ajouter le path des packages Python utilisateur
+  PYTHONPATH = "/opt/buildhome/.local/lib/python3.9/site-packages:/opt/buildhome/python3.9/lib/python3.9/site-packages"
 
 [[redirects]]
   from = "/api/*"
@@ -19,11 +27,29 @@
 
 [functions]
   node_bundler = "esbuild"
+  
+  # Configuration spécifique pour les fonctions Python
+  [functions.subtitles]
+    included_files = [
+      "netlify/functions/subtitles.js", 
+      "netlify/functions/requirements.txt"
+    ]
+    # Timeout étendu pour l'extraction
+    timeout = 60
 
-# Configuration spécifique pour la fonction subtitles
-[functions.subtitles]
-  included_files = ["netlify/functions/subtitles.js", "netlify/functions/requirements.txt"]
+# Headers de sécurité
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Variables d'environnement (à configurer dans l'interface Netlify)
-# YOUTUBE_API_KEY = "optionnel_maintenant"
-# NODE_ENV = "production"
+# Headers pour les fonctions
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
