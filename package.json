@@ -1,20 +1,16 @@
 {
   "name": "yt-creator-tools",
-  "version": "2.0.0",
-  "description": "Outils professionnels pour créateurs YouTube",
+  "version": "2.1.0",
+  "description": "Outils professionnels pour créateurs YouTube avec extraction de sous-titres optimisée",
   "main": "index.html",
   "scripts": {
     "dev": "netlify dev",
-    "build": "npm install",
+    "build": "echo 'Build terminé - fonctions prêtes'",
     "deploy": "netlify deploy --prod",
-    "install-deps": "npm install ytdl-core googleapis firebase-admin",
-    "test-subtitles": "node test-subtitles.js"
+    "test-subtitles": "node test-script.js",
+    "test-local": "netlify dev"
   },
-  "dependencies": {
-    "ytdl-core": "^4.11.5",
-    "googleapis": "^126.0.1",
-    "firebase-admin": "^11.11.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "netlify-cli": "^17.0.0"
   },
@@ -28,10 +24,11 @@
   "keywords": [
     "youtube",
     "creator-tools",
-    "thumbnails",
+    "thumbnails", 
     "subtitles",
-    "video-metadata",
-    "ytdl-core"
+    "transcripts",
+    "innertube-api",
+    "video-metadata"
   ],
   "author": "KINGSOFT BUSINESS",
   "license": "MIT"

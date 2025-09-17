@@ -1,11 +1,14 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm install ytdl-core"
+  # Pas besoin d'installer de packages externes - utilise Node.js natif
+  command = "echo 'Build terminé - fonctions optimisées'"
 
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
+  # Optimisations mémoire pour Node.js
+  NODE_OPTIONS = "--max-old-space-size=512 --no-warnings"
 
 [[redirects]]
   from = "/api/*"
@@ -19,25 +22,29 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["ytdl-core"]
+  # Pas de modules externes - tout en natif
+  external_node_modules = []
+  directory = "netlify/functions"
 
-# Configuration spécifique pour la fonction subtitles
+# Configuration spécifique pour la fonction subtitles optimisée
 [functions."subtitles"]
   timeout = 45
   memory = 1024
   node_bundler = "esbuild"
-  external_node_modules = ["ytdl-core"]
+  # Variables d'environnement spécifiques
+  [functions."subtitles".environment]
+    NODE_ENV = "production"
+    DEBUG = "false"
 
-# Headers de sécurité globaux
+# Headers de sécurité
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
-# Headers spécifiques pour les functions
+# Headers pour les functions avec optimisations
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
@@ -45,17 +52,15 @@
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Cache-Control = "no-cache, no-store, must-revalidate"
+    # Headers pour améliorer les performances
+    Keep-Alive = "timeout=30, max=100"
+    Connection = "keep-alive"
 
-# Configuration des redirections d'erreur
-[[redirects]]
-  from = "/404"
-  to = "/index.html"
-  status = 200
-
-# Variables d'environnement
+# Configuration de production optimisée
 [context.production.environment]
   NODE_ENV = "production"
-  NODE_OPTIONS = "--max-old-space-size=1024"
+  NODE_OPTIONS = "--max-old-space-size=512"
 
 [context.development.environment]
   NODE_ENV = "development"
+  DEBUG = "true"
