@@ -1,17 +1,19 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "echo 'Build completed'"
+  command = "npm install"
 
 [build.environment]
-  PYTHON_VERSION = "3.9"
+  NODE_VERSION = "18"
+  NPM_VERSION = "8"
 
-# Configuration des fonctions Python
+# Configuration des fonctions JavaScript/Node.js
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [functions."subtitles"]
-  runtime = "python3.9"
+  included_files = ["node_modules/youtube-transcript/**"]
 
 [[redirects]]
   from = "/api/*"
@@ -22,3 +24,11 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Headers pour CORS
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"

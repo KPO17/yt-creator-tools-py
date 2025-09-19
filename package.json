@@ -1,26 +1,29 @@
 {
   "name": "yt-creator-tools",
-  "version": "2.1.0",
-  "description": "Générateur de scripts YouTube avec extraction de sous-titres Python serverless, authentification Firebase et monétisation AdSense",
+  "version": "2.2.0",
+  "description": "Générateur de scripts YouTube avec extraction de sous-titres JS/Node.js, authentification Firebase et monétisation AdSense",
   "main": "index.html",
   "type": "module",
   "scripts": {
     "dev": "netlify dev --live",
     "dev:local": "netlify dev",
-    "build": "echo 'Build terminé - fonctions Python prêtes'",
+    "build": "echo 'Build terminé - fonctions JS prêtes'",
     "deploy": "netlify deploy --prod",
     "deploy:preview": "netlify deploy",
     "test-subtitles": "netlify functions:invoke subtitles --payload '{\"videoId\":\"dQw4w9WgXcQ\",\"format\":\"json\",\"language\":\"en\"}'",
     "test-local": "netlify dev --port 8888",
     "check-functions": "netlify functions:list",
     "logs": "netlify logs:function subtitles",
-    "lint": "echo 'Pas de linting configuré - fonctions Python natives'",
+    "lint": "echo 'Pas de linting configuré'",
     "start": "netlify dev",
-    "postinstall": "echo 'Installation terminée - prêt pour le développement'",
-    "clean": "rm -rf .netlify dist",
-    "status": "netlify status"
+    "postinstall": "echo 'Installation terminée avec youtube-transcript'",
+    "clean": "rm -rf .netlify dist node_modules",
+    "status": "netlify status",
+    "test-youtube-transcript": "node test-youtube-transcript.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "youtube-transcript": "^1.2.1"
+  },
   "devDependencies": {
     "netlify-cli": "^17.10.1"
   },
@@ -36,7 +39,8 @@
     "youtube",
     "creator-tools",
     "subtitles",
-    "python",
+    "youtube-transcript",
+    "javascript",
     "serverless",
     "netlify-functions",
     "firebase-auth",
@@ -61,7 +65,7 @@
   "netlify": {
     "functions": {
       "directory": "netlify/functions",
-      "python_runtime": "3.9"
+      "node_bundler": "esbuild"
     },
     "build": {
       "publish": ".",
