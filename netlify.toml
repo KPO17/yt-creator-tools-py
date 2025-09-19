@@ -1,12 +1,10 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "echo 'Build terminé - fonctions Python optimisées'"
+  command = "echo 'Build completed'"
 
 [build.environment]
   PYTHON_VERSION = "3.9"
-  NODE_VERSION = "18"
-  NODE_ENV = "production"
 
 [[redirects]]
   from = "/api/*"
@@ -18,41 +16,10 @@
   to = "/index.html"
   status = 200
 
+# Configuration globale des fonctions
 [functions]
   directory = "netlify/functions"
 
-# Configuration spécifique pour la fonction subtitles Python
-[functions."subtitles"]
+# Configuration spécifique pour Python
+[functions."*"]
   runtime = "python3.9"
-  timeout = 60
-  memory = 1024
-  # Variables d'environnement spécifiques
-  [functions."subtitles".environment]
-    PYTHONPATH = "/opt/python"
-    PYTHONUNBUFFERED = "1"
-
-# Headers de sécurité
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-# Headers pour les functions avec optimisations
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-    Cache-Control = "no-cache, no-store, must-revalidate"
-
-# Configuration de production optimisée
-[context.production.environment]
-  PYTHON_VERSION = "3.9"
-  PYTHONUNBUFFERED = "1"
-
-[context.development.environment]
-  PYTHON_VERSION = "3.9"
-  DEBUG = "true"
