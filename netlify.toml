@@ -1,19 +1,9 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  command = "npm install"
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_VERSION = "8"
-
-# Configuration des fonctions JavaScript/Node.js
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-
-[functions."subtitles"]
-  included_files = ["node_modules/youtube-transcript/**"]
 
 [[redirects]]
   from = "/api/*"
@@ -25,10 +15,11 @@
   to = "/index.html"
   status = 200
 
-# Headers pour CORS
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+[functions]
+  node_bundler = "esbuild"
+
+# Variables d'environnement (à configurer dans l'interface Netlify)
+# YOUTUBE_API_KEY = "votre_cle_youtube_api"
+# FIREBASE_PROJECT_ID = "votre_project_id"
+# FIREBASE_PRIVATE_KEY = "votre_private_key"
+# FIREBASE_CLIENT_EMAIL = "votre_client_email"

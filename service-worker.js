@@ -1,6 +1,6 @@
-// service-worker.js - YT Creator Tools avec support Python Functions
-const CACHE_NAME = 'yt-creator-tools-v2.1.0';
-const CACHE_VERSION = 'v2.1.0';
+// service_worker.js - YT Creator Tools
+const CACHE_NAME = 'yt-creator-tools-v2.0.0';
+const CACHE_VERSION = 'v2.0.0';
 
 // Ressources critiques à mettre en cache immédiatement
 const CORE_CACHE_RESOURCES = [
@@ -25,21 +25,15 @@ const NEVER_CACHE_URLS = [
   '/.netlify/functions/',
   'https://www.googleapis.com/',
   'https://pagead2.googlesyndication.com/',
-  'chrome-extension://',
-  // Nouvelles URLs à ne pas cacher
-  'https://img.youtube.com/', // Images YouTube dynamiques
-  'firebase',
-  'google'
+  'chrome-extension://'
 ];
 
-// URLs qui nécessitent toujours le réseau (Network First)
+// URLs qui nécessitent toujours le réseau
 const NETWORK_FIRST_URLS = [
-  '/.netlify/functions/subtitles', // Notre fonction Python
   '/api/',
+  '/.netlify/functions/',
   'https://img.youtube.com/',
-  'https://www.googleapis.com/youtube/',
-  'firebase',
-  'pagead2.googlesyndication.com'
+  'https://www.googleapis.com/youtube/'
 ];
 
 // Installation du Service Worker
@@ -80,7 +74,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Gestion des requêtes avec stratégies spécifiques
+// Gestion des requêtes
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
@@ -91,10 +85,7 @@ self.addEventListener('fetch', event => {
   }
   
   // Stratégies de cache différentes selon le type de ressource
-  if (isPythonFunctionRequest(url)) {
-    // Network Only pour les fonctions Python (pas de cache)
-    event.respondWith(networkOnlyStrategy(request));
-  } else if (isNetworkFirstResource(url)) {
+  if (isNetworkFirstResource(url)) {
     // Network First (APIs, images YouTube)
     event.respondWith(networkFirstStrategy(request));
   } else if (isCacheFirstResource(url)) {
@@ -109,26 +100,24 @@ self.addEventListener('fetch', event => {
   }
 });
 
-// Gestion des notifications push
+// Gestion des notifications push (optionnel)
 self.addEventListener('push', event => {
   if (event.data) {
     const data = event.data.json();
     const options = {
-      body: data.body || 'Sous-titres prêts ! Téléchargez votre script YouTube.',
+      body: data.body || 'Nouvelle notification de YT Creator Tools',
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
       tag: 'yt-creator-notification',
       requireInteraction: false,
-      data: data.data || {},
       actions: [
         {
           action: 'open',
-          title: 'Ouvrir l\'app',
-          icon: '/icons/action-open.png'
+          title: 'Ouvrir l\'app'
         },
         {
-          action: 'dismiss',
-          title: 'Ignorer'
+          action: 'close',
+          title: 'Fermer'
         }
       ]
     };
@@ -155,7 +144,7 @@ self.addEventListener('notificationclick', event => {
           }
           // Sinon, ouvrir une nouvelle fenêtre
           if (clients.openWindow) {
-            return clients.openWindow('/?from=notification');
+            return clients.openWindow('/');
           }
         })
     );
@@ -187,10 +176,11 @@ self.addEventListener('message', event => {
         });
         break;
         
-      case 'CACHE_SUBTITLE_RESULT':
-        // Cache le résultat des sous-titres pour accès offline
-        if (event.data.data) {
-          cacheSubtitleResult(event.data.data);
+      case 'CACHE_URLS':
+        if (event.data.urls) {
+          cacheUrls(event.data.urls).then(() => {
+            event.ports[0].postMessage({ success: true });
+          });
         }
         break;
     }
@@ -202,22 +192,15 @@ self.addEventListener('message', event => {
 function shouldIgnoreRequest(request) {
   const url = request.url;
   
-  // Ignorer les requêtes non-GET sauf pour les fonctions Netlify
-  if (request.method !== 'GET' && !url.includes('/.netlify/functions/')) {
-    return true;
-  }
+  // Ignorer les requêtes non-GET
+  if (request.method !== 'GET') return true;
   
   // Ignorer les extensions de navigateur
-  if (url.startsWith('chrome-extension://') || url.startsWith('moz-extension://')) {
-    return true;
-  }
+  if (url.startsWith('chrome-extension://')) return true;
+  if (url.startsWith('moz-extension://')) return true;
   
   // Ignorer certaines URLs
   return NEVER_CACHE_URLS.some(pattern => url.includes(pattern));
-}
-
-function isPythonFunctionRequest(url) {
-  return url.pathname.includes('/.netlify/functions/subtitles');
 }
 
 function isNetworkFirstResource(url) {
@@ -239,39 +222,14 @@ function isStaleWhileRevalidateResource(url) {
   return url.href.includes('googleapis.com') && !url.href.includes('img.youtube.com');
 }
 
-// Stratégie Network Only (pour les fonctions Python)
-async function networkOnlyStrategy(request) {
-  try {
-    console.log('[SW] Network Only:', request.url);
-    const response = await fetch(request);
-    
-    // Log pour debug des fonctions Python
-    if (!response.ok) {
-      console.warn('[SW] Python function error:', response.status, request.url);
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('[SW] Python function failed:', error);
-    // Retourner une erreur JSON pour les fonctions
-    return new Response(
-      JSON.stringify({ error: 'Fonction indisponible offline' }),
-      { 
-        status: 503,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-}
-
 // Stratégie Network First
 async function networkFirstStrategy(request) {
   try {
     // Essayer le réseau d'abord
     const response = await fetch(request);
     
-    // Si succès, mettre en cache (sauf APIs)
-    if (response.ok && !request.url.includes('/api/') && !request.url.includes('/.netlify/functions/')) {
+    // Si succès, mettre en cache (sauf si c'est une API)
+    if (response.ok && !request.url.includes('/api/')) {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());
     }
@@ -364,12 +322,13 @@ async function cacheExtendedResources() {
   try {
     const cache = await caches.open(CACHE_NAME);
     
+    // Ajouter les ressources une par une pour éviter les échecs
     for (const url of EXTENDED_CACHE_RESOURCES) {
       try {
         await cache.add(new Request(url, { mode: 'cors' }));
         console.log('[SW] Ressource mise en cache:', url);
       } catch (error) {
-        console.warn('[SW] Impossible de mettre en cache:', url);
+        console.warn('[SW] Impossible de mettre en cache:', url, error);
       }
     }
   } catch (error) {
@@ -386,24 +345,12 @@ async function performBackgroundSync() {
       await cleanupCache();
     }
     
+    // Pré-charger les ressources populaires
+    await preloadPopularResources();
+    
     console.log('[SW] Synchronisation arrière-plan terminée');
   } catch (error) {
     console.error('[SW] Erreur synchronisation:', error);
-  }
-}
-
-// Cache des résultats de sous-titres pour accès offline
-async function cacheSubtitleResult(data) {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const response = new Response(JSON.stringify(data), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    await cache.put(`/offline-subtitles/${data.videoId}`, response);
-    console.log('[SW] Résultat sous-titres mis en cache:', data.videoId);
-  } catch (error) {
-    console.warn('[SW] Erreur cache sous-titres:', error);
   }
 }
 
@@ -428,12 +375,12 @@ async function getCacheSize() {
   return totalSize;
 }
 
-// Nettoyer le cache
+// Nettoyer le cache en supprimant les anciennes entrées
 async function cleanupCache() {
   const cache = await caches.open(CACHE_NAME);
   const requests = await cache.keys();
   
-  // Supprimer les entrées les plus anciennes
+  // Supprimer les entrées les plus anciennes (logique simple)
   const oldRequests = requests.slice(0, Math.floor(requests.length / 3));
   
   for (const request of oldRequests) {
@@ -441,6 +388,25 @@ async function cleanupCache() {
   }
   
   console.log('[SW] Cache nettoyé:', oldRequests.length, 'entrées supprimées');
+}
+
+// Pré-charger les ressources populaires
+async function preloadPopularResources() {
+  const popularUrls = [
+    'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg', // Exemple
+  ];
+  
+  const cache = await caches.open(CACHE_NAME);
+  
+  for (const url of popularUrls) {
+    try {
+      if (!(await cache.match(url))) {
+        await cache.add(url);
+      }
+    } catch (error) {
+      console.warn('[SW] Erreur préchargement:', url);
+    }
+  }
 }
 
 // Vider tous les caches
@@ -451,8 +417,20 @@ async function clearAllCaches() {
   );
 }
 
+// Mettre en cache des URLs spécifiques
+async function cacheUrls(urls) {
+  const cache = await caches.open(CACHE_NAME);
+  return Promise.all(
+    urls.map(url => {
+      return cache.add(url).catch(error => {
+        console.warn('[SW] Impossible de mettre en cache:', url, error);
+      });
+    })
+  );
+}
+
 // Log de démarrage
-console.log('[SW] YT Creator Tools Service Worker', CACHE_VERSION, 'chargé avec support Python Functions');
+console.log('[SW] YT Creator Tools Service Worker', CACHE_VERSION, 'chargé');
 
 // Gestion des erreurs globales
 self.addEventListener('error', event => {
@@ -463,3 +441,40 @@ self.addEventListener('unhandledrejection', event => {
   console.error('[SW] Promise rejetée:', event.reason);
   event.preventDefault();
 });
+
+// Statistiques de performance (optionnel)
+self.addEventListener('fetch', event => {
+  const startTime = performance.now();
+  
+  event.respondWith(
+    handleRequest(event.request).then(response => {
+      const duration = performance.now() - startTime;
+      
+      // Log des performances pour les requêtes lentes
+      if (duration > 1000) {
+        console.warn('[SW] Requête lente:', event.request.url, duration.toFixed(2) + 'ms');
+      }
+      
+      return response;
+    })
+  );
+});
+
+// Fonction wrapper pour les requêtes
+async function handleRequest(request) {
+  const url = new URL(request.url);
+  
+  if (shouldIgnoreRequest(request)) {
+    return fetch(request);
+  }
+  
+  if (isNetworkFirstResource(url)) {
+    return networkFirstStrategy(request);
+  } else if (isCacheFirstResource(url)) {
+    return cacheFirstStrategy(request);
+  } else if (isStaleWhileRevalidateResource(url)) {
+    return staleWhileRevalidateStrategy(request);
+  } else {
+    return cacheFirstStrategy(request);
+  }
+}
