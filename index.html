@@ -15,6 +15,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-VOTRE_ID_ADSENSE"
+            crossorigin="anonymous"></script>
+    
     <style>
         * {
             margin: 0;
@@ -63,23 +67,20 @@
             font-size: 1.1em;
         }
         
-        /* Zone publicitaire */
+        /* Zone publicitaire AdSense */
         .ad-zone {
             background: rgba(255, 255, 255, 0.05);
             border: 2px dashed rgba(255, 255, 255, 0.3);
             border-radius: 15px;
-            padding: 30px;
+            padding: 20px;
             margin: 20px 0;
             text-align: center;
-            min-height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            min-height: 100px;
         }
         
         .ad-placeholder {
             color: rgba(255, 255, 255, 0.6);
-            font-size: 1.1em;
+            font-size: 1em;
         }
         
         /* Auth Section */
@@ -669,10 +670,19 @@
             <p class="app-subtitle">Outils professionnels pour créateurs YouTube</p>
         </div>
         
-        <!-- Zone publicitaire -->
+        <!-- Zone publicitaire AdSense -->
         <div class="ad-zone" id="main-ad">
             <div class="ad-placeholder">
-                📺 Espace publicitaire - Configurez Google AdSense
+                <!-- AdSense Banner -->
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-VOTRE_ID_ADSENSE"
+                     data-ad-slot="VOTRE_SLOT_ID"
+                     data-ad-format="auto"
+                     data-full-width-responsive="true"></ins>
+                <script>
+                     (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
             </div>
         </div>
         
@@ -752,6 +762,18 @@
                 </div>
             </div>
             
+            <!-- Zone publicitaire intermédiaire -->
+            <div class="ad-zone">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-client="ca-pub-VOTRE_ID_ADSENSE"
+                     data-ad-slot="VOTRE_SLOT_INTERMEDIAIRE"
+                     data-ad-format="rectangle"></ins>
+                <script>
+                     (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
+            </div>
+            
             <!-- Sous-titres -->
             <div class="subtitles-section">
                 <h2 class="section-title">📄 Sous-titres et Scripts</h2>
@@ -779,7 +801,6 @@
                                 <option value="ja">🇯🇵 日本語</option>
                                 <option value="ko">🇰🇷 한국어</option>
                                 <option value="ar">🇸🇦 العربية</option>
-                                <option value="auto">🔄 Détection automatique</option>
                             </select>
                         </div>
 
@@ -801,7 +822,7 @@
                         </button>
                         
                         <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">
-                            ℹ️ Les sous-titres sont extraits directement de YouTube. Certaines vidéos peuvent ne pas avoir de sous-titres dans toutes les langues.
+                            ℹ️ Les sous-titres sont extraits avec notre fonction Python optimisée.
                         </div>
                     </div>
                 </div>
@@ -813,10 +834,23 @@
             <h3>📱 Suivez-nous</h3>
             <div class="social-icons">
                 <a href="https://youtube.com/@yourchannel" class="social-icon youtube" title="YouTube">📺</a>
-                <a href="https://twitter.com/yourtwitter" class="social-icon twitter" title="Twitter">🐦</a>
+                <a href="https://twitter.com/yourtwitter" class="social-icon twitter" title="Twitter">🦆</a>
                 <a href="https://instagram.com/yourinsta" class="social-icon instagram" title="Instagram">📷</a>
                 <a href="https://tiktok.com/@yourtiktok" class="social-icon tiktok" title="TikTok">🎵</a>
             </div>
+        </div>
+        
+        <!-- Zone publicitaire finale -->
+        <div class="ad-zone">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-VOTRE_ID_ADSENSE"
+                 data-ad-slot="VOTRE_SLOT_FOOTER"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
         </div>
     </div>
 
@@ -874,10 +908,14 @@
                 <button class="close-ad" onclick="closeAdModal()">&times;</button>
             </div>
             <div class="ad-content">
-                <div>
-                    <h3>Espace publicitaire</h3>
-                    <p>Configurez vos annonces Google AdSense ici</p>
-                </div>
+                <!-- Zone publicitaire popup -->
+                <ins class="adsbygoogle"
+                     style="display:block; width:300px; height:250px;"
+                     data-ad-client="ca-pub-VOTRE_ID_ADSENSE"
+                     data-ad-slot="VOTRE_SLOT_POPUP"></ins>
+                <script>
+                     (adsbygoogle = window.adsbygoogle || []).push({});
+                </script>
             </div>
         </div>
     </div>
@@ -1061,236 +1099,144 @@
             }
         }
 
-        // Fonction downloadSubtitles corrigée
-// Fonction downloadSubtitles corrigée avec debugging
-async function downloadSubtitles(format) {
-    if (!currentUser) {
-        showError('Connectez-vous pour accéder aux sous-titres');
-        return;
-    }
-    
-    // Vérification des permissions
-    if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
-        showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
-        return;
-    }
-    
-    const url = document.getElementById('youtube-url').value.trim();
-    const videoId = getVideoId(url);
-    
-    if (!videoId) {
-        showError('Aucune vidéo sélectionnée ou URL invalide');
-        return;
-    }
-    
-    try {
-        showLoading(true);
-        console.log('🚀 Début téléchargement sous-titres:', { videoId, format });
-        
-        // Construire l'URL de l'API
-        const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? '/.netlify/functions/subtitles'
-            : 'https://ytcreatortools.netlify.app/.netlify/functions/subtitles';
-        
-        console.log('📡 URL API:', apiUrl);
-        
-        const requestBody = {
-            videoId: videoId,
-            format: format,
-            language: getSelectedLanguage()
-        };
-        
-        console.log('📦 Request body:', requestBody);
-        
-        // Faire la requête
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        console.log('📥 Response status:', response.status, response.statusText);
-        console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
-        
-        // Vérifier le statut de la réponse
-        if (!response.ok) {
-            let errorData;
-            const responseText = await response.text();
-            console.error('❌ Response error body:', responseText);
-            
-            try {
-                errorData = JSON.parse(responseText);
-            } catch (e) {
-                errorData = { error: `Erreur HTTP ${response.status}: ${responseText}` };
+        // Fonction downloadSubtitles avec vérification d'authentification
+        async function downloadSubtitles(format) {
+            // VÉRIFICATION PREMIUM : Utilisateur connecté et vérifié requis
+            if (!currentUser) {
+                showError('Connectez-vous pour accéder aux sous-titres premium');
+                openAuthModal('login');
+                return;
             }
             
-            // Messages d'erreur spécifiques
-            let errorMessage = errorData.error || `Erreur HTTP ${response.status}`;
-            
-            switch (response.status) {
-                case 404:
-                    errorMessage = 'Aucun sous-titre disponible pour cette vidéo ou langue';
-                    break;
-                case 400:
-                    errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
-                    break;
-                case 408:
-                    errorMessage = 'Délai d\'attente dépassé - Réessayez dans quelques secondes';
-                    break;
-                case 500:
-                    errorMessage = 'Erreur serveur - Veuillez réessayer';
-                    break;
-                case 503:
-                    errorMessage = 'Service temporairement indisponible - Réessayez plus tard';
-                    break;
+            if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
+                showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
+                return;
             }
             
-            throw new Error(errorMessage);
-        }
-        
-        // Vérifier le type de contenu
-        const contentType = response.headers.get('content-type');
-        console.log('📄 Content-Type:', contentType);
-        
-        // Récupérer le contenu des sous-titres
-        const subtitleContent = await response.text();
-        console.log('📝 Content length:', subtitleContent.length);
-        console.log('📝 Content preview:', subtitleContent.substring(0, 200));
-        
-        if (!subtitleContent || subtitleContent.trim().length === 0) {
-            throw new Error('Contenu des sous-titres vide');
-        }
-        
-        // Créer et télécharger le fichier
-        const mimeType = getMimeType(format);
-        const blob = new Blob([subtitleContent], { type: mimeType });
-        const downloadUrl = URL.createObjectURL(blob);
-        
-        // Générer un nom de fichier propre
-        const fileName = `${getVideoTitle(videoId)}_${format}_${Date.now()}.${format}`;
-        
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = fileName;
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Nettoyer
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-        
-        console.log('✅ Téléchargement réussi:', fileName);
-        
-        // Afficher une pub et un message de succès
-        showAdModal();
-        showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
-        
-    } catch (error) {
-        console.error('❌ Erreur téléchargement sous-titres:', error);
-        showError(error.message || 'Erreur lors du téléchargement des sous-titres');
-        
-        // Suggestions pour le débogage
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('🔧 Suggestions de débogage:');
-            console.log('1. Vérifiez que Netlify Dev est lancé');
-            console.log('2. Vérifiez les logs de la fonction Netlify');
-            console.log('3. Testez avec une autre vidéo YouTube');
-            console.log('4. Vérifiez votre connexion internet');
-        }
-        
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Fonction pour tester spécifiquement l'API (amélioration de votre fonction de test)
-async function testSubtitlesAPI() {
-    try {
-        showLoading(true);
-        console.log('🧪 Test API Sous-titres - Début');
-        
-        // Tester avec plusieurs vidéos populaires
-        const testVideos = [
-            { id: 'dQw4w9WgXcQ', title: 'Rick Astley - Never Gonna Give You Up' },
-            { id: 'jNQXAC9IVRw', title: 'Me at the zoo (première vidéo YouTube)' },
-            { id: 'hFZFjoX2cGg', title: 'Gangnam Style' }
-        ];
-        
-        for (const video of testVideos) {
-            console.log(`🎯 Test avec: ${video.title} (${video.id})`);
+            const url = document.getElementById('youtube-url').value.trim();
+            const videoId = getVideoId(url);
+            
+            if (!videoId) {
+                showError('Aucune vidéo sélectionnée ou URL invalide');
+                return;
+            }
             
             try {
-                const response = await fetch('/.netlify/functions/subtitles', {
+                showLoading(true);
+                console.log('🚀 Début téléchargement sous-titres (Premium):', { videoId, format, user: currentUser.email });
+                
+                // Construire l'URL de l'API Python
+                const apiUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                    ? '/.netlify/functions/subtitles'
+                    : 'https://ytcreatortools.netlify.app/.netlify/functions/subtitles';
+                
+                console.log('📡 URL API Python:', apiUrl);
+                
+                const requestBody = {
+                    videoId: videoId,
+                    format: format,
+                    language: getSelectedLanguage(),
+                    // Informations utilisateur pour analytics premium
+                    userInfo: {
+                        uid: currentUser.uid,
+                        email: currentUser.email,
+                        premium: true
+                    }
+                };
+                
+                console.log('📦 Request body:', requestBody);
+                
+                // Faire la requête à la fonction Python
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        videoId: video.id,
-                        format: 'json',
-                        language: 'en'
-                    })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${await currentUser.getIdToken()}`
+                    },
+                    body: JSON.stringify(requestBody)
                 });
                 
-                console.log(`✅ ${video.title}:`, response.status, response.statusText);
+                console.log('📥 Response status:', response.status, response.statusText);
                 
-                if (response.ok) {
-                    const content = await response.text();
-                    console.log(`📊 Contenu (${content.length} chars):`, content.substring(0, 100) + '...');
-                    showSuccess(`Test réussi avec: ${video.title}`);
-                    break; // Arrêter au premier succès
-                } else {
-                    const error = await response.text();
-                    console.log(`❌ Erreur ${video.title}:`, error);
+                // Vérifier le statut de la réponse
+                if (!response.ok) {
+                    let errorData;
+                    const responseText = await response.text();
+                    console.error('❌ Response error body:', responseText);
+                    
+                    try {
+                        errorData = JSON.parse(responseText);
+                    } catch (e) {
+                        errorData = { error: `Erreur HTTP ${response.status}: ${responseText}` };
+                    }
+                    
+                    let errorMessage = errorData.error || `Erreur HTTP ${response.status}`;
+                    
+                    switch (response.status) {
+                        case 404:
+                            errorMessage = 'Aucun sous-titre disponible pour cette vidéo ou langue';
+                            break;
+                        case 400:
+                            errorMessage = 'ID vidéo invalide - Vérifiez le lien YouTube';
+                            break;
+                        case 401:
+                            errorMessage = 'Session expirée - Reconnectez-vous';
+                            break;
+                        case 403:
+                            errorMessage = 'Accès premium requis';
+                            break;
+                        case 429:
+                            errorMessage = 'Trop de requêtes - Attendez quelques minutes';
+                            break;
+                        case 500:
+                            errorMessage = 'Erreur serveur Python - Veuillez réessayer';
+                            break;
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
                 
-            } catch (videoError) {
-                console.error(`❌ Exception ${video.title}:`, videoError.message);
+                // Récupérer le contenu des sous-titres
+                const subtitleContent = await response.text();
+                console.log('📄 Content length:', subtitleContent.length);
+                
+                if (!subtitleContent || subtitleContent.trim().length === 0) {
+                    throw new Error('Contenu des sous-titres vide');
+                }
+                
+                // Créer et télécharger le fichier
+                const mimeType = getMimeType(format);
+                const blob = new Blob([subtitleContent], { type: mimeType });
+                const downloadUrl = URL.createObjectURL(blob);
+                
+                // Générer un nom de fichier propre
+                const fileName = `youtube_${videoId}_subtitles_${format}_${Date.now()}.${format}`;
+                
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = fileName;
+                link.style.display = 'none';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Nettoyer
+                setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+                
+                console.log('✅ Téléchargement réussi:', fileName);
+                
+                // Afficher une pub après téléchargement réussi
+                showAdModal();
+                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés avec succès !`);
+                
+            } catch (error) {
+                console.error('❌ Erreur téléchargement sous-titres:', error);
+                showError(error.message || 'Erreur lors du téléchargement des sous-titres');
+                
+            } finally {
+                showLoading(false);
             }
-        }
-        
-    } catch (error) {
-        console.error('❌ Erreur test général:', error);
-        showError(`Erreur test API: ${error.message}`);
-    } finally {
-        showLoading(false);
-    }
-}
-
-        // Fonction utilitaire pour obtenir la langue sélectionnée
-        function getSelectedLanguage() {
-            const selector = document.getElementById('subtitle-language');
-            if (!selector) return 'fr';
-            
-            const value = selector.value;
-            return value === 'auto' ? '' : value;
-        }
-
-        // Fonction utilitaire pour obtenir le type MIME
-        function getMimeType(format) {
-            switch (format.toLowerCase()) {
-                case 'srt':
-                    return 'application/x-subrip';
-                case 'vtt':
-                    return 'text/vtt';
-                case 'json':
-                    return 'application/json';
-                default:
-                    return 'text/plain';
-            }
-        }
-
-        // Fonction utilitaire pour obtenir un nom de fichier propre
-        function getVideoTitle(videoId) {
-            if (currentVideoData && currentVideoData.snippet && currentVideoData.snippet.title) {
-                return currentVideoData.snippet.title
-                    .replace(/[^\w\s-]/g, '')
-                    .replace(/\s+/g, '_')
-                    .substring(0, 50);
-            }
-            return videoId;
         }
 
         // Auth Modal Functions
@@ -1311,7 +1257,7 @@ async function testSubtitlesAPI() {
             document.getElementById(`${tab}-form`).classList.add('active');
         }
 
-        // Authentification Firebase
+        // Authentification Firebase Email/Password
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
@@ -1331,7 +1277,7 @@ async function testSubtitlesAPI() {
                 }
                 
                 closeAuthModal();
-                showSuccess('Connexion réussie !');
+                showSuccess('Connexion réussie ! Fonctionnalités premium débloquées.');
                 document.getElementById('login-email').value = '';
                 document.getElementById('login-password').value = '';
                 
@@ -1388,7 +1334,7 @@ async function testSubtitlesAPI() {
                 });
                 
                 closeAuthModal();
-                showSuccess('Inscription réussie ! Vérifiez votre email avant de vous connecter.');
+                showSuccess('Inscription réussie ! Vérifiez votre email avant d\'accéder aux fonctionnalités premium.');
                 
                 await auth.signOut();
                 
@@ -1490,32 +1436,6 @@ async function testSubtitlesAPI() {
             }, 600000);
         }
 
-        // Fonctions utilitaires
-        function getVideoId(url) {
-            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[7].length == 11) ? match[7] : null;
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('show');
-            setTimeout(() => errorDiv.classList.remove('show'), 5000);
-        }
-
-        function showSuccess(message) {
-            const successDiv = document.getElementById('success-message');
-            successDiv.textContent = message;
-            successDiv.classList.add('show');
-            setTimeout(() => successDiv.classList.remove('show'), 3000);
-        }
-
-        function hideMessages() {
-            document.getElementById('error-message').classList.remove('show');
-            document.getElementById('success-message').classList.remove('show');
-        }
-
         // Fonction principale d'analyse
         async function analyzeVideo() {
             const urlInput = document.getElementById('youtube-url');
@@ -1548,6 +1468,7 @@ async function testSubtitlesAPI() {
                 }
                 
                 document.getElementById('results-section').classList.add('show');
+                showSuccess('Vidéo analysée avec succès !');
                 
             } catch (error) {
                 showError('Erreur lors de l\'analyse de la vidéo');
@@ -1558,7 +1479,7 @@ async function testSubtitlesAPI() {
         }
 
         async function fetchVideoMetadata(videoId) {
-            if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY === 'YOUR_YOUTUBE_API_KEY') {
+            if (!YOUTUBE_API_KEY || YOUTUBE_API_KEY === 'AIzaSyA4T9faYdV6U3kdNpjEdXtVfz3jXtsJILQ') {
                 console.log('Clé API YouTube non configurée - mode limité');
                 return null;
             }
@@ -1666,7 +1587,31 @@ async function testSubtitlesAPI() {
             showSuccess('Téléchargement démarré !');
         }
 
-        // Fonctions de copie
+        // Fonctions utilitaires
+        function getVideoId(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : null;
+        }
+
+        function getSelectedLanguage() {
+            const selector = document.getElementById('subtitle-language');
+            return selector ? selector.value : 'fr';
+        }
+
+        function getMimeType(format) {
+            switch (format.toLowerCase()) {
+                case 'srt':
+                    return 'application/x-subrip';
+                case 'vtt':
+                    return 'text/vtt';
+                case 'json':
+                    return 'application/json';
+                default:
+                    return 'text/plain';
+            }
+        }
+
         function copyText(elementId) {
             const element = document.getElementById(elementId);
             const text = element.textContent.replace('Copier', '').trim();
@@ -1693,13 +1638,36 @@ async function testSubtitlesAPI() {
         // Gestion des modales publicitaires
         function showAdModal() {
             document.getElementById('ad-modal').style.display = 'block';
+            
+            // Fermeture automatique après 10 secondes
+            setTimeout(() => {
+                closeAdModal();
+            }, 10000);
         }
 
         function closeAdModal() {
             document.getElementById('ad-modal').style.display = 'none';
         }
 
-        // Gestion du loading
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.classList.add('show');
+            setTimeout(() => successDiv.classList.remove('show'), 4000);
+        }
+
+        function hideMessages() {
+            document.getElementById('error-message').classList.remove('show');
+            document.getElementById('success-message').classList.remove('show');
+        }
+
         function showLoading(show) {
             const loading = document.getElementById('loading');
             const btn = document.querySelector('.btn-primary');
@@ -1708,7 +1676,7 @@ async function testSubtitlesAPI() {
             if (show) {
                 loading.style.display = 'block';
                 btn.disabled = true;
-                btnText.textContent = '🔄 Analyse en cours...';
+                btnText.textContent = '⏳ Traitement en cours...';
             } else {
                 loading.style.display = 'none';
                 btn.disabled = false;
@@ -1736,36 +1704,15 @@ async function testSubtitlesAPI() {
             }
         });
 
-        // Service Worker pour PWA
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(() => console.log('Service Worker enregistré'))
-                .catch(() => console.log('Erreur Service Worker'));
-        }
-
-        // Initialisation
-        document.addEventListener('DOMContentLoaded', function() {
-            updateAuthUI();
-            
-            // Ajouter un bouton de test temporaire pour déboguer
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                const testBtn = document.createElement('button');
-                testBtn.textContent = '🧪 Test API Sous-titres';
-                testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:orange;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;';
-                testBtn.onclick = testSubtitlesAPI;
-                document.body.appendChild(testBtn);
-            }
-        });
-
-        // Fonction pour tester la nouvelle API
-        async function testSubtitlesAPI() {
+        // Test de l'API Python en développement
+        async function testPythonAPI() {
             try {
                 showLoading(true);
+                console.log('🧪 Test API Python - Début');
+                
                 const response = await fetch('/.netlify/functions/subtitles', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         videoId: 'dQw4w9WgXcQ', // Rick Astley - Never Gonna Give You Up
                         format: 'json',
@@ -1773,52 +1720,111 @@ async function testSubtitlesAPI() {
                     })
                 });
                 
-                console.log('Test API - Status:', response.status);
+                console.log('✅ Test API - Status:', response.status);
                 
                 if (response.ok) {
                     const content = await response.text();
-                    console.log('Test API - Succès:', content.substring(0, 200) + '...');
-                    showSuccess('Test API réussi ! Fonction sous-titres opérationnelle.');
+                    console.log('✅ Test API - Succès:', content.substring(0, 200) + '...');
+                    showSuccess('Test API Python réussi ! Fonction sous-titres opérationnelle.');
                 } else {
                     const error = await response.json();
-                    console.log('Test API - Erreur:', error);
+                    console.log('❌ Test API - Erreur:', error);
                     showError(`Test API échoué: ${error.error}`);
                 }
             } catch (error) {
-                console.error('Test API - Exception:', error);
+                console.error('❌ Test API - Exception:', error);
                 showError(`Erreur test API: ${error.message}`);
             } finally {
                 showLoading(false);
             }
-
-            // Dans votre fonction downloadSubtitles côté client
-try {
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ videoId, format, language })
-  });
-
-  console.log('Status:', response.status);
-  console.log('Headers:', response.headers);
-  
-  const responseText = await response.text();
-  console.log('Response body:', responseText);
-  
-  if (!response.ok) {
-    // Essayer de parser l'erreur JSON
-    try {
-      const errorData = JSON.parse(responseText);
-      console.error('Détails erreur:', errorData);
-    } catch (e) {
-      console.error('Erreur brute:', responseText);
-    }
-  }
-  
-} catch (error) {
-  console.error('Erreur réseau:', error);
-}
         }
+
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('Service Worker enregistré'))
+                .catch(() => console.log('Erreur Service Worker'));
+        }
+
+        // Affichage aléatoire de pub popup (une fois toutes les 5 actions)
+        let actionCount = 0;
+        function trackUserAction() {
+            actionCount++;
+            if (actionCount % 5 === 0) {
+                setTimeout(showAdModal, 2000); // Délai de 2s pour ne pas être intrusif
+            }
+        }
+
+        // Initialisation complète
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAuthUI();
+            
+            // Ajouter tracking aux actions principales
+            document.getElementById('youtube-url').addEventListener('input', trackUserAction);
+            
+            // Ajouter un bouton de test temporaire pour déboguer
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                const testBtn = document.createElement('button');
+                testBtn.textContent = '🧪 Test API Python';
+                testBtn.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:orange;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;';
+                testBtn.onclick = testPythonAPI;
+                document.body.appendChild(testBtn);
+                
+                // Bouton pour tester les pubs
+                const testAdBtn = document.createElement('button');
+                testAdBtn.textContent = '📺 Test Pub';
+                testAdBtn.style.cssText = 'position:fixed;top:50px;right:10px;z-index:9999;background:purple;color:white;padding:10px;border:none;border-radius:5px;cursor:pointer;font-size:12px;';
+                testAdBtn.onclick = showAdModal;
+                document.body.appendChild(testAdBtn);
+            }
+
+            // Configuration AdSense après chargement DOM
+            window.adsbygoogle = window.adsbygoogle || [];
+            
+            // Message de bienvenue pour les nouveaux utilisateurs
+            if (!localStorage.getItem('visited')) {
+                setTimeout(() => {
+                    showSuccess('Bienvenue sur YT Creator Tools ! Connectez-vous pour accéder aux fonctionnalités premium.');
+                    localStorage.setItem('visited', 'true');
+                }, 2000);
+            }
+        });
+
+        // Gestion des erreurs globales JavaScript
+        window.addEventListener('error', function(event) {
+            console.error('Erreur JavaScript:', event.error);
+            showError('Une erreur s\'est produite. Rechargez la page si le problème persiste.');
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Promise rejetée:', event.reason);
+            event.preventDefault();
+        });
+
+        // Analytics basique (sans Google Analytics pour éviter les conflits)
+        function trackEvent(eventName, parameters = {}) {
+            console.log('Event:', eventName, parameters);
+            
+            // Ici vous pouvez ajouter votre système d'analytics
+            // Par exemple: gtag('event', eventName, parameters);
+        }
+
+        // Optimisations de performance
+        function preloadImage(src) {
+            const img = new Image();
+            img.src = src;
+        }
+
+        // Précharger les images de miniatures courantes
+        function preloadCommonThumbnails() {
+            const commonVideoIds = ['dQw4w9WgXcQ', 'jNQXAC9IVRw']; // Exemples
+            commonVideoIds.forEach(videoId => {
+                preloadImage(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+            });
+        }
+
+        // Lancer le préchargement après un délai
+        setTimeout(preloadCommonThumbnails, 3000);
     </script>
 </body>
 </html>

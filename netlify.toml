@@ -1,14 +1,12 @@
 [build]
   functions = "netlify/functions"
   publish = "."
-  # Pas besoin d'installer de packages externes - utilise Node.js natif
-  command = "echo 'Build terminé - fonctions optimisées'"
+  command = "echo 'Build terminé - fonctions Python optimisées'"
 
 [build.environment]
+  PYTHON_VERSION = "3.9"
   NODE_VERSION = "18"
   NODE_ENV = "production"
-  # Optimisations mémoire pour Node.js
-  NODE_OPTIONS = "--max-old-space-size=512 --no-warnings"
 
 [[redirects]]
   from = "/api/*"
@@ -21,20 +19,17 @@
   status = 200
 
 [functions]
-  node_bundler = "esbuild"
-  # Pas de modules externes - tout en natif
-  external_node_modules = []
   directory = "netlify/functions"
 
-# Configuration spécifique pour la fonction subtitles optimisée
+# Configuration spécifique pour la fonction subtitles Python
 [functions."subtitles"]
-  timeout = 45
+  runtime = "python3.9"
+  timeout = 60
   memory = 1024
-  node_bundler = "esbuild"
   # Variables d'environnement spécifiques
   [functions."subtitles".environment]
-    NODE_ENV = "production"
-    DEBUG = "false"
+    PYTHONPATH = "/opt/python"
+    PYTHONUNBUFFERED = "1"
 
 # Headers de sécurité
 [[headers]]
@@ -52,15 +47,12 @@
     Access-Control-Allow-Headers = "Content-Type, Authorization, X-Requested-With"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Cache-Control = "no-cache, no-store, must-revalidate"
-    # Headers pour améliorer les performances
-    Keep-Alive = "timeout=30, max=100"
-    Connection = "keep-alive"
 
 # Configuration de production optimisée
 [context.production.environment]
-  NODE_ENV = "production"
-  NODE_OPTIONS = "--max-old-space-size=512"
+  PYTHON_VERSION = "3.9"
+  PYTHONUNBUFFERED = "1"
 
 [context.development.environment]
-  NODE_ENV = "development"
+  PYTHON_VERSION = "3.9"
   DEBUG = "true"
