@@ -29,6 +29,18 @@ exports.handler = async (event, context) => {
     };
   }
 
+  // NOUVEAU: Vérification de la clé API
+  if (!process.env.YOUTUBE_API_KEY) {
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Clé API YouTube non configurée sur le serveur',
+        details: 'Contactez l\'administrateur pour configurer YOUTUBE_API_KEY dans les variables d\'environnement Netlify'
+      })
+    };
+  }
+
   try {
     const { videoId, format = 'srt', language = 'fr' } = JSON.parse(event.body);
 
@@ -122,20 +134,42 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('Erreur extraction sous-titres:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      response: error.response?.data
+    });
     
     let errorMessage = 'Erreur interne du serveur';
+    let statusCode = 500;
+    
+    // Gestion détaillée des erreurs YouTube API
     if (error.code === 403) {
-      errorMessage = 'Accès refusé - Vérifiez la clé API YouTube';
+      errorMessage = 'Accès refusé - Vérifiez la clé API YouTube ou les quotas';
+      statusCode = 403;
     } else if (error.code === 404) {
       errorMessage = 'Sous-titres non trouvés pour cette vidéo';
+      statusCode = 404;
+    } else if (error.code === 400) {
+      errorMessage = 'Requête invalide - ID vidéo incorrect';
+      statusCode = 400;
+    } else if (error.message && error.message.includes('quota')) {
+      errorMessage = 'Quota API YouTube dépassé - Réessayez plus tard';
+      statusCode = 429;
     }
 
     return {
-      statusCode: error.code || 500,
+      statusCode,
       headers,
       body: JSON.stringify({ 
         error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          code: error.code,
+          hasApiKey: !!process.env.YOUTUBE_API_KEY,
+          apiKeyPrefix: process.env.YOUTUBE_API_KEY ? process.env.YOUTUBE_API_KEY.substring(0, 10) + '...' : 'undefined'
+        } : 'Contactez le support technique'
       })
     };
   }
