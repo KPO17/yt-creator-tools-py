@@ -1,35 +1,92 @@
 {
   "name": "yt-creator-tools",
-  "version": "2.1.0",
-  "description": "Outils professionnels pour créateurs YouTube avec extraction de sous-titres optimisée",
+  "version": "2.2.0",
+  "description": "Générateur de scripts YouTube avec extraction de sous-titres JS/Node.js, authentification Firebase et monétisation AdSense",
   "main": "index.html",
+  "type": "module",
   "scripts": {
-    "dev": "netlify dev",
-    "build": "echo 'Build terminé - fonctions prêtes'",
+    "dev": "netlify dev --live",
+    "dev:local": "netlify dev",
+    "build": "echo 'Build terminé - fonctions JS prêtes'",
     "deploy": "netlify deploy --prod",
-    "test-subtitles": "node test-script.js",
-    "test-local": "netlify dev"
+    "deploy:preview": "netlify deploy",
+    "test-subtitles": "netlify functions:invoke subtitles --payload '{\"videoId\":\"dQw4w9WgXcQ\",\"format\":\"json\",\"language\":\"en\"}'",
+    "test-local": "netlify dev --port 8888",
+    "check-functions": "netlify functions:list",
+    "logs": "netlify logs:function subtitles",
+    "lint": "echo 'Pas de linting configuré'",
+    "start": "netlify dev",
+    "postinstall": "echo 'Installation terminée avec youtube-transcript'",
+    "clean": "rm -rf .netlify dist node_modules",
+    "status": "netlify status",
+    "test-youtube-transcript": "node test-youtube-transcript.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "youtube-transcript": "^1.2.1"
+  },
   "devDependencies": {
-    "netlify-cli": "^17.0.0"
+    "netlify-cli": "^17.10.1"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/yt-creator-tools"
+    "url": "https://github.com/yourusername/yt-creator-tools.git"
   },
   "keywords": [
     "youtube",
     "creator-tools",
-    "thumbnails", 
     "subtitles",
-    "transcripts",
-    "innertube-api",
-    "video-metadata"
+    "youtube-transcript",
+    "javascript",
+    "serverless",
+    "netlify-functions",
+    "firebase-auth",
+    "adsense",
+    "pwa",
+    "transcript-generator",
+    "video-metadata",
+    "thumbnails",
+    "premium-features",
+    "ai-tools"
   ],
-  "author": "KINGSOFT BUSINESS",
-  "license": "MIT"
+  "author": {
+    "name": "KINGSOFT BUSINESS",
+    "email": "kingsoft237@gmail.com",
+    "url": "https://kingsoftbusiness.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/yt-creator-tools/issues"
+  },
+  "homepage": "https://ytcreatortools.netlify.app",
+  "netlify": {
+    "functions": {
+      "directory": "netlify/functions",
+      "node_bundler": "esbuild"
+    },
+    "build": {
+      "publish": ".",
+      "functions": "netlify/functions"
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ],
+  "pwa": {
+    "name": "YT Creator Tools",
+    "short_name": "YT Tools",
+    "display": "standalone",
+    "start_url": "/",
+    "theme_color": "#FF0000"
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/sponsors/yourusername"
+  }
 }
