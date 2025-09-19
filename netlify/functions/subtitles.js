@@ -1,239 +1,320 @@
-// netlify/functions/subtitles.js - SOLUTION QUI MARCHE COMME DOWNSUB
+// netlify/functions/subtitles.js - VERSION CORRIGÉE AVEC YOUTUBE-TRANSCRIPT
 const https = require('https');
 const { URL } = require('url');
 
-// Configuration simple et efficace
+// Configuration optimisée
 const CONFIG = {
-    TIMEOUT: 20000,
-    USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    TIMEOUT: 30000,
+    MAX_RETRIES: 2,
+    USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 };
 
 exports.handler = async (event, context) => {
-    // Headers CORS
     const headers = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
     };
 
+    // Gérer les requêtes OPTIONS (CORS)
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers: corsHeaders,
-            body: ''
-        };
+        return { statusCode: 200, headers, body: '' };
     }
-    
-    // Vérifier méthode POST
+
     if (event.httpMethod !== 'POST') {
         return { 
             statusCode: 405, 
             headers, 
-            body: JSON.stringify({ error: 'Méthode non autorisée' }) 
+            body: JSON.stringify({ error: 'Méthode non autorisée - utilisez POST' }) 
         };
     }
 
-    try {
-        const { videoId, format = 'srt', language = 'en' } = JSON.parse(event.body || '{}');
+    let videoId, format, language;
 
+    try {
+        // Parser le body de la requête
+        const body = JSON.parse(event.body || '{}');
+        videoId = body.videoId;
+        format = body.format || 'srt';
+        language = body.language || 'en';
+
+        console.log(`🎬 Demande extraction: ${videoId} (${language}, ${format})`);
+
+        // Validation de l'ID vidéo
         if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
             return {
                 statusCode: 400,
                 headers,
-                body: JSON.stringify({ error: 'ID vidéo invalide' })
-            };
-        }
-
-        console.log(`Extraction sous-titres: ${videoId} (${language}, ${format})`);
-
-        // MÉTHODE SIMPLE COMME DOWNSUB - Récupérer la liste des sous-titres
-        const captionsList = await getCaptionsList(videoId);
-        
-        if (!captionsList || captionsList.length === 0) {
-            return {
-                statusCode: 404,
-                headers,
-                body: JSON.stringify({ error: 'Aucun sous-titre disponible' })
-            };
-        }
-
-        // Sélectionner la meilleure piste
-        const selectedTrack = selectBestTrack(captionsList, language);
-        
-        if (!selectedTrack) {
-            return {
-                statusCode: 404,
-                headers,
                 body: JSON.stringify({ 
-                    error: `Aucun sous-titre pour la langue: ${language}`,
-                    availableLanguages: captionsList.map(c => c.language_code)
+                    error: 'ID vidéo YouTube invalide (format: 11 caractères alphanumériques)',
+                    example: 'dQw4w9WgXcQ'
                 })
             };
         }
 
-        // Télécharger les sous-titres
-        const subtitleContent = await downloadSubtitles(selectedTrack.base_url);
+        // Extraire les sous-titres avec la nouvelle méthode
+        const transcripts = await getYouTubeTranscripts(videoId, language);
         
-        // Parser et convertir
-        const parsedSubtitles = parseSubtitles(subtitleContent);
-        const convertedContent = convertToFormat(parsedSubtitles, format);
+        if (!transcripts || transcripts.length === 0) {
+            return {
+                statusCode: 404,
+                headers,
+                body: JSON.stringify({ 
+                    error: 'Aucun sous-titre trouvé pour cette vidéo',
+                    suggestion: 'Vérifiez que la vidéo a des sous-titres activés ou essayez "auto" pour la langue'
+                })
+            };
+        }
+
+        // Convertir au format demandé
+        const convertedContent = convertTranscriptsToFormat(transcripts, format);
+        
+        console.log(`✅ Extraction réussie: ${transcripts.length} segments`);
 
         return {
             statusCode: 200,
             headers: {
                 ...headers,
-                'Content-Type': getContentType(format),
-                'Content-Disposition': `attachment; filename="${videoId}_${language}.${format}"`
+                'Content-Type': getContentTypeForFormat(format),
+                'Content-Disposition': `attachment; filename="${videoId}_${language}_${Date.now()}.${format}"`
             },
             body: convertedContent
         };
-        
+
     } catch (error) {
-        console.error('Erreur extraction:', error.message);
+        console.error('❌ Erreur extraction:', error);
         
+        // Messages d'erreur spécifiques
+        let errorMessage = error.message;
+        let statusCode = 500;
+
+        if (error.message.includes('Video unavailable') || error.message.includes('not found')) {
+            statusCode = 404;
+            errorMessage = 'Vidéo non trouvée, privée ou supprimée';
+        } else if (error.message.includes('No transcripts')) {
+            statusCode = 404;
+            errorMessage = 'Aucun sous-titre disponible pour cette vidéo';
+        } else if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+            statusCode = 408;
+            errorMessage = 'Délai d\'attente dépassé - réessayez dans quelques secondes';
+        }
+
         return {
-            statusCode: 500,
+            statusCode,
             headers,
             body: JSON.stringify({ 
-                error: error.message || 'Erreur lors de l\'extraction',
-                details: error.stack
+                error: errorMessage,
+                videoId: videoId || 'unknown',
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
             })
         };
     }
 };
 
-// Récupérer la liste des sous-titres (comme DownSub)
-async function getCaptionsList(videoId) {
-    const url = `https://www.youtube.com/api/timedtext?type=list&v=${videoId}`;
+// NOUVELLE FONCTION PRINCIPALE : Obtenir les transcripts YouTube
+async function getYouTubeTranscripts(videoId, targetLanguage = 'en') {
+    try {
+        console.log(`🔍 Recherche transcripts pour: ${videoId}`);
+        
+        // Étape 1: Récupérer la page YouTube
+        const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        const html = await makeHttpRequest(watchUrl);
+        
+        // Étape 2: Extraire les informations de transcripts
+        const transcriptInfo = extractTranscriptInfo(html);
+        
+        if (!transcriptInfo || transcriptInfo.length === 0) {
+            throw new Error('No transcripts available for this video');
+        }
+
+        console.log(`📋 ${transcriptInfo.length} transcript(s) trouvé(s)`);
+        
+        // Étape 3: Sélectionner le meilleur transcript
+        const selectedTranscript = selectBestTranscript(transcriptInfo, targetLanguage);
+        
+        if (!selectedTranscript) {
+            const available = transcriptInfo.map(t => t.languageCode).join(', ');
+            throw new Error(`Language "${targetLanguage}" not available. Available: ${available}`);
+        }
+
+        console.log(`🎯 Transcript sélectionné: ${selectedTranscript.languageCode}`);
+
+        // Étape 4: Télécharger le transcript
+        const transcriptData = await downloadTranscript(selectedTranscript.url);
+        
+        // Étape 5: Parser le contenu XML
+        const parsedTranscripts = parseTranscriptXML(transcriptData);
+        
+        console.log(`✅ ${parsedTranscripts.length} segments extraits`);
+        return parsedTranscripts;
+
+    } catch (error) {
+        console.error('❌ Erreur getYouTubeTranscripts:', error);
+        throw error;
+    }
+}
+
+// Extraire les informations de transcript depuis le HTML
+function extractTranscriptInfo(html) {
+    const transcripts = [];
     
     try {
-        const response = await makeHttpRequest(url);
-        
-        // Parser XML simple
-        const tracks = [];
-        const trackRegex = /<track[^>]*>/g;
-        let match;
-        
-        while ((match = trackRegex.exec(response)) !== null) {
-            const track = match[0];
-            
-            const langMatch = track.match(/lang_code="([^"]*)"/);
-            const nameMatch = track.match(/name="([^"]*)"/);
-            const langOrigMatch = track.match(/lang_original="([^"]*)"/);
-            
-            if (langMatch) {
-                tracks.push({
-                    language_code: langMatch[1],
-                    language_name: nameMatch ? nameMatch[1] : langMatch[1],
-                    language_original: langOrigMatch ? langOrigMatch[1] : null,
-                    base_url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${langMatch[1]}&fmt=srv3`
-                });
-            }
+        // Rechercher ytInitialPlayerResponse
+        const playerResponseMatch = html.match(/var ytInitialPlayerResponse\s*=\s*({.+?});/);
+        if (!playerResponseMatch) {
+            throw new Error('Player response not found');
         }
+
+        const playerResponse = JSON.parse(playerResponseMatch[1]);
+        const captions = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
         
-        console.log(`Pistes trouvées: ${tracks.length}`);
-        return tracks;
-        
+        if (!captions || captions.length === 0) {
+            throw new Error('No caption tracks found');
+        }
+
+        // Traiter chaque piste de sous-titres
+        captions.forEach(caption => {
+            transcripts.push({
+                languageCode: caption.languageCode,
+                languageName: caption.name?.simpleText || caption.languageCode,
+                url: caption.baseUrl,
+                isAutoGenerated: caption.kind === 'asr'
+            });
+        });
+
+        return transcripts;
+
     } catch (error) {
-        console.error('Erreur récupération liste:', error.message);
+        console.error('❌ Erreur extraction transcript info:', error);
+        
+        // Méthode de fallback - recherche par regex
+        try {
+            const captionRegex = /"captionTracks":\[(.*?)\]/s;
+            const match = html.match(captionRegex);
+            
+            if (match && match[1]) {
+                const captionsStr = '[' + match[1] + ']';
+                const captions = JSON.parse(captionsStr);
+                
+                return captions.map(caption => ({
+                    languageCode: caption.languageCode || 'en',
+                    languageName: caption.name?.simpleText || caption.languageCode || 'Unknown',
+                    url: caption.baseUrl,
+                    isAutoGenerated: caption.kind === 'asr'
+                }));
+            }
+        } catch (fallbackError) {
+            console.error('❌ Fallback extraction failed:', fallbackError);
+        }
+
         return [];
     }
 }
 
-// Sélectionner la meilleure piste (logique DownSub)
-function selectBestTrack(tracks, requestedLang) {
-    if (!tracks || tracks.length === 0) return null;
-    
-    // 1. Recherche exacte
-    let track = tracks.find(t => t.language_code === requestedLang);
-    if (track) return track;
-    
-    // 2. Recherche par préfixe (ex: 'en' pour 'en-US')
-    track = tracks.find(t => t.language_code.startsWith(requestedLang.substring(0, 2)));
-    if (track) return track;
-    
-    // 3. Recherche dans le nom
-    const langNames = {
-        'fr': ['french', 'français', 'francais'],
-        'en': ['english', 'anglais'],
-        'es': ['spanish', 'español', 'espanol'],
-        'de': ['german', 'deutsch'],
-        'it': ['italian', 'italiano']
-    };
-    
-    const searchNames = langNames[requestedLang.toLowerCase()] || [];
-    track = tracks.find(t => 
-        searchNames.some(name => 
-            t.language_name.toLowerCase().includes(name)
-        )
-    );
-    if (track) return track;
-    
-    // 4. Fallback : première piste ou anglais
-    track = tracks.find(t => t.language_code.startsWith('en'));
-    return track || tracks[0];
+// Sélectionner le meilleur transcript selon la langue demandée
+function selectBestTranscript(transcripts, targetLanguage) {
+    if (!transcripts || transcripts.length === 0) return null;
+
+    console.log(`🔍 Recherche langue: "${targetLanguage}"`);
+    console.log('📝 Langues disponibles:', transcripts.map(t => `${t.languageCode} (${t.languageName})`));
+
+    // 1. Correspondance exacte
+    let transcript = transcripts.find(t => t.languageCode === targetLanguage);
+    if (transcript) return transcript;
+
+    // 2. Correspondance par préfixe (ex: 'en' pour 'en-US')
+    const langPrefix = targetLanguage.split('-')[0];
+    transcript = transcripts.find(t => t.languageCode.startsWith(langPrefix));
+    if (transcript) return transcript;
+
+    // 3. Si "auto" est demandé, prendre le premier auto-généré
+    if (targetLanguage === 'auto' || targetLanguage === '') {
+        transcript = transcripts.find(t => t.isAutoGenerated);
+        if (transcript) return transcript;
+    }
+
+    // 4. Fallback vers anglais
+    transcript = transcripts.find(t => t.languageCode.startsWith('en'));
+    if (transcript) return transcript;
+
+    // 5. Premier disponible
+    return transcripts[0];
 }
 
-// Télécharger les sous-titres
-async function downloadSubtitles(url) {
-    console.log('Téléchargement depuis:', url);
-    return makeHttpRequest(url);
+// Télécharger le contenu du transcript
+async function downloadTranscript(transcriptUrl) {
+    if (!transcriptUrl) {
+        throw new Error('Transcript URL is missing');
+    }
+
+    try {
+        // Ajouter les paramètres nécessaires
+        const url = new URL(transcriptUrl);
+        url.searchParams.set('fmt', 'srv3'); // Format XML structured
+        
+        console.log(`📥 Téléchargement transcript: ${url.toString().substring(0, 100)}...`);
+        
+        const content = await makeHttpRequest(url.toString(), {
+            'Accept': 'text/xml, application/xml, text/plain, */*',
+            'Referer': 'https://www.youtube.com/'
+        });
+
+        if (!content || content.trim().length === 0) {
+            throw new Error('Empty transcript content');
+        }
+
+        console.log(`✅ Transcript téléchargé: ${content.length} caractères`);
+        return content;
+
+    } catch (error) {
+        console.error('❌ Erreur téléchargement transcript:', error);
+        throw new Error(`Failed to download transcript: ${error.message}`);
+    }
 }
 
-// Parser les sous-titres YouTube
-function parseSubtitles(content) {
-    const subtitles = [];
+// Parser le XML du transcript
+function parseTranscriptXML(xmlContent) {
+    const segments = [];
     
     try {
-        // Format JSON3 (le plus courant)
-        if (content.trim().startsWith('{')) {
-            const data = JSON.parse(content);
-            
-            if (data.events) {
-                data.events.forEach(event => {
-                    if (event.segs && event.segs.length > 0) {
-                        const text = event.segs.map(seg => seg.utf8 || '').join('').trim();
-                        if (text) {
-                            subtitles.push({
-                                start: (event.tStartMs || 0) / 1000,
-                                duration: (event.dDurationMs || 2000) / 1000,
-                                text: cleanText(text)
-                            });
-                        }
-                    }
+        // Regex pour extraire les segments <text>
+        const textRegex = /<text start="([^"]*)"(?:\s+dur="([^"]*)")?[^>]*>(.*?)<\/text>/gs;
+        let match;
+        let index = 1;
+
+        while ((match = textRegex.exec(xmlContent)) !== null) {
+            const start = parseFloat(match[1]) || 0;
+            const duration = parseFloat(match[2]) || 3.0; // Durée par défaut
+            let text = match[3] || '';
+
+            // Nettoyer le texte
+            text = cleanTranscriptText(text);
+
+            if (text.trim()) {
+                segments.push({
+                    index: index++,
+                    start: start,
+                    duration: duration,
+                    end: start + duration,
+                    text: text
                 });
             }
-            
-            return subtitles;
         }
-    } catch (e) {
-        console.log('Pas du JSON, essai XML...');
+
+        return segments;
+
+    } catch (error) {
+        console.error('❌ Erreur parsing XML:', error);
+        throw new Error(`Failed to parse transcript XML: ${error.message}`);
     }
-    
-    // Format XML/SRV3
-    const textRegex = /<text start="([^"]*)"[^>]*dur="([^"]*)"[^>]*>([^<]*)<\/text>/g;
-    let match;
-    
-    while ((match = textRegex.exec(content)) !== null) {
-        const start = parseFloat(match[1]);
-        const duration = parseFloat(match[2]) || 2.0;
-        const text = cleanText(match[3]);
-        
-        if (text) {
-            subtitles.push({
-                start,
-                duration,
-                text
-            });
-        }
-    }
-    
-    return subtitles;
 }
 
-// Nettoyer le texte
-function cleanText(text) {
+// Nettoyer le texte du transcript
+function cleanTranscriptText(text) {
+    if (!text) return '';
+
     return text
         // Décoder les entités HTML
         .replace(/&amp;/g, '&')
@@ -243,76 +324,74 @@ function cleanText(text) {
         .replace(/&#39;/g, "'")
         .replace(/&apos;/g, "'")
         .replace(/&nbsp;/g, ' ')
-        .replace(/\n/g, ' ')
+        
+        // Supprimer les balises XML/HTML
+        .replace(/<[^>]*>/g, '')
+        
+        // Nettoyer les espaces
+        .replace(/\s+/g, ' ')
+        .replace(/\n+/g, ' ')
         .trim();
 }
 
-// Convertir au format demandé
-function convertToFormat(subtitles, format) {
-    if (!subtitles || subtitles.length === 0) {
+// Convertir les transcripts au format demandé
+function convertTranscriptsToFormat(transcripts, format) {
+    if (!transcripts || transcripts.length === 0) {
         return format === 'json' ? '[]' : '';
     }
-    
-    switch (format) {
-        case 'json':
-            return JSON.stringify(subtitles, null, 2);
-            
-        case 'txt':
-            return subtitles.map(item => item.text).join('\n');
-            
+
+    switch (format.toLowerCase()) {
         case 'srt':
-            return subtitles.map((sub, index) => {
-                const start = formatTime(sub.start);
-                const end = formatTime(sub.start + sub.duration);
-                return `${index + 1}\n${start} --> ${end}\n${sub.text}\n`;
+            return transcripts.map(segment => {
+                const start = formatTimeForSRT(segment.start);
+                const end = formatTimeForSRT(segment.end);
+                return `${segment.index}\n${start} --> ${end}\n${segment.text}\n`;
             }).join('\n');
-            
+
         case 'vtt':
-            const vttContent = subtitles.map((sub, index) => {
-                const start = formatTimeVTT(sub.start);
-                const end = formatTimeVTT(sub.start + sub.duration);
-                return `${start} --> ${end}\n${sub.text}\n`;
+            const vttContent = transcripts.map(segment => {
+                const start = formatTimeForVTT(segment.start);
+                const end = formatTimeForVTT(segment.end);
+                return `${start} --> ${end}\n${segment.text}\n`;
             }).join('\n');
             return `WEBVTT\n\n${vttContent}`;
-            
+
         case 'txt':
-            return subtitles.map(sub => sub.text).join(' ');
-            
+            return transcripts.map(segment => segment.text).join(' ');
+
         case 'json':
         default:
-            return JSON.stringify(subtitles, null, 2);
+            return JSON.stringify(transcripts, null, 2);
     }
 }
 
-// Formatter le temps pour SRT
-function formatTime(seconds) {
+// Fonctions utilitaires pour le formatage du temps
+function formatTimeForSRT(seconds) {
     const totalMs = Math.round(seconds * 1000);
     const hours = Math.floor(totalMs / 3600000);
     const minutes = Math.floor((totalMs % 3600000) / 60000);
     const secs = Math.floor((totalMs % 60000) / 1000);
     const ms = totalMs % 1000;
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
 }
 
-// Formatter le temps pour VTT
-function formatTimeVTT(seconds) {
-    return formatTime(seconds).replace(',', '.');
+function formatTimeForVTT(seconds) {
+    return formatTimeForSRT(seconds).replace(',', '.');
 }
 
-// Type de contenu
-function getContentType(format) {
+function getContentTypeForFormat(format) {
     const types = {
         'srt': 'application/x-subrip; charset=utf-8',
-        'vtt': 'text/vtt; charset=utf-8',
+        'vtt': 'text/vtt; charset=utf-8', 
         'txt': 'text/plain; charset=utf-8',
         'json': 'application/json; charset=utf-8'
     };
-    return types[format] || 'text/plain; charset=utf-8';
+    return types[format.toLowerCase()] || 'text/plain; charset=utf-8';
 }
 
-// Fonction HTTP simple
-function makeHttpRequest(url) {
+// Fonction HTTP améliorée
+function makeHttpRequest(url, customHeaders = {}) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         
@@ -323,16 +402,38 @@ function makeHttpRequest(url) {
             method: 'GET',
             headers: {
                 'User-Agent': CONFIG.USER_AGENT,
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9,fr;q=0.8',
+                'Accept-Encoding': 'identity',
+                'Connection': 'keep-alive',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1',
+                ...customHeaders
             }
         };
+
+        console.log(`🌐 Requête HTTP: ${urlObj.hostname}${options.path.substring(0, 50)}...`);
 
         const req = https.request(options, (res) => {
             let data = '';
             
+            // Gérer les redirections
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                console.log(`🔄 Redirection: ${res.statusCode} -> ${res.headers.location}`);
+                return makeHttpRequest(res.headers.location, customHeaders)
+                    .then(resolve)
+                    .catch(reject);
+            }
+
+            res.setEncoding('utf8');
             res.on('data', chunk => data += chunk);
+            
             res.on('end', () => {
+                console.log(`📊 Réponse: ${res.statusCode} (${data.length} chars)`);
+                
                 if (res.statusCode >= 200 && res.statusCode < 300) {
                     resolve(data);
                 } else {
@@ -341,12 +442,17 @@ function makeHttpRequest(url) {
             });
         });
 
-        req.on('error', reject);
-        req.setTimeout(CONFIG.TIMEOUT, () => {
-            req.destroy();
-            reject(new Error('Timeout'));
+        req.on('error', (error) => {
+            console.error('❌ Erreur HTTP:', error.message);
+            reject(error);
         });
-        
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error(`Timeout après ${CONFIG.TIMEOUT}ms`));
+        });
+
+        req.setTimeout(CONFIG.TIMEOUT);
         req.end();
     });
 }
