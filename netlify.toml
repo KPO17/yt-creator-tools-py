@@ -23,3 +23,8 @@
 # Configuration spécifique pour Python
 [functions."*"]
   runtime = "python3.9"
+[functions]
+  directory = "netlify/functions"
+
+[functions."subtitles"]
+  runtime = "python3.9"
