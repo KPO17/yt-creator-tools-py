@@ -1,4 +1,3 @@
-# netlify/functions/subtitles.py
 import json
 import re
 import urllib.request
@@ -7,161 +6,134 @@ from urllib.error import URLError, HTTPError
 
 
 def handler(event, context):
-    """
-    Fonction Netlify pour extraire les sous-titres YouTube
-    Point d'entrée principal pour Netlify Functions Python
-    """
-    # Configuration CORS
-    headers = {
+    """Point d'entrée principal pour Netlify Functions"""
+    
+    # Headers CORS
+    cors_headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json'
     }
     
-    # Gérer les requêtes OPTIONS (preflight CORS)
+    # Gérer OPTIONS (preflight CORS)
     if event.get('httpMethod') == 'OPTIONS':
         return {
             'statusCode': 200,
-            'headers': headers,
+            'headers': cors_headers,
             'body': ''
         }
     
-    # Vérifier la méthode
+    # Vérifier méthode POST
     if event.get('httpMethod') != 'POST':
         return {
             'statusCode': 405,
-            'headers': headers,
-            'body': json.dumps({'error': 'Méthode non autorisée. Utilisez POST.'})
+            'headers': cors_headers,
+            'body': json.dumps({'error': 'Méthode non autorisée'})
         }
     
     try:
-        # Debug logs
-        print(f"Event reçu: {event}")
-        
-        # Parser le body de la requête
+        # Parser le body
         if not event.get('body'):
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'Corps de requête manquant'})
-            }
+            return error_response(cors_headers, 400, 'Corps de requête manquant')
         
         body = json.loads(event['body'])
-        video_id = body.get('videoId')
+        video_id = body.get('videoId', '').strip()
         format_type = body.get('format', 'txt').lower()
         language = body.get('language', 'fr')
         
-        print(f"Paramètres: videoId={video_id}, format={format_type}, language={language}")
-        
-        # Validation des paramètres
+        # Validation
         if not video_id:
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'ID vidéo manquant'})
-            }
+            return error_response(cors_headers, 400, 'ID vidéo manquant')
         
         if not re.match(r'^[a-zA-Z0-9_-]{11}$', video_id):
-            return {
-                'statusCode': 400,
-                'headers': headers,
-                'body': json.dumps({'error': 'ID vidéo invalide'})
-            }
+            return error_response(cors_headers, 400, 'ID vidéo invalide')
         
-        # Extraire les sous-titres
-        print(f"Début extraction pour {video_id}")
-        subtitles_data = extract_youtube_subtitles(video_id, language)
+        print(f"Traitement vidéo {video_id}, format {format_type}, langue {language}")
         
-        if not subtitles_data:
-            return {
-                'statusCode': 404,
-                'headers': headers,
-                'body': json.dumps({'error': 'Aucun sous-titre trouvé pour cette vidéo'})
-            }
+        # Extraire sous-titres
+        subtitles = extract_subtitles(video_id, language)
         
-        # Formater selon le type demandé
-        formatted_content = format_subtitles(subtitles_data, format_type)
+        if not subtitles:
+            return error_response(cors_headers, 404, 'Aucun sous-titre trouvé pour cette vidéo')
         
-        # Définir le Content-Type selon le format
-        content_types = {
+        # Formater
+        formatted = format_output(subtitles, format_type)
+        
+        # Headers selon format
+        content_type = {
             'txt': 'text/plain; charset=utf-8',
-            'srt': 'application/x-subrip; charset=utf-8',
+            'srt': 'application/x-subrip; charset=utf-8', 
             'vtt': 'text/vtt; charset=utf-8',
             'json': 'application/json; charset=utf-8'
-        }
+        }.get(format_type, 'text/plain; charset=utf-8')
         
-        headers['Content-Type'] = content_types.get(format_type, 'text/plain; charset=utf-8')
-        
-        print(f"Succès: {len(formatted_content)} caractères retournés")
+        final_headers = {**cors_headers, 'Content-Type': content_type}
         
         return {
             'statusCode': 200,
-            'headers': headers,
-            'body': formatted_content
+            'headers': final_headers,
+            'body': formatted
         }
         
-    except json.JSONDecodeError as e:
-        print(f"Erreur JSON: {str(e)}")
-        return {
-            'statusCode': 400,
-            'headers': headers,
-            'body': json.dumps({'error': 'JSON invalide dans le corps de la requête'})
-        }
+    except json.JSONDecodeError:
+        return error_response(cors_headers, 400, 'JSON invalide')
     except Exception as e:
-        print(f"Erreur dans handler: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': headers,
-            'body': json.dumps({'error': f'Erreur serveur: {str(e)}'})
-        }
+        print(f"Erreur: {str(e)}")
+        return error_response(cors_headers, 500, f'Erreur serveur: {str(e)}')
 
 
-def extract_youtube_subtitles(video_id, language='fr'):
-    """
-    Extraire les sous-titres d'une vidéo YouTube
-    """
+def error_response(headers, status, message):
+    """Créer une réponse d'erreur"""
+    return {
+        'statusCode': status,
+        'headers': headers,
+        'body': json.dumps({'error': message})
+    }
+
+
+def extract_subtitles(video_id, language):
+    """Extraire les sous-titres YouTube"""
     try:
-        print(f"Extraction pour vidéo: {video_id}, langue: {language}")
+        url = f'https://www.youtube.com/watch?v={video_id}'
         
-        # URL de la page vidéo YouTube
-        video_url = f'https://www.youtube.com/watch?v={video_id}'
-        
-        # Headers pour simuler un navigateur
-        headers_browser = {
+        headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
         }
         
-        # Créer la requête
-        req = urllib.request.Request(video_url, headers=headers_browser)
+        req = urllib.request.Request(url, headers=headers)
         
-        # Récupérer la page
-        print(f"Récupération de la page YouTube...")
         with urllib.request.urlopen(req, timeout=30) as response:
-            html_content = response.read()
-            # Gérer l'encodage
-            if response.info().get('Content-Encoding') == 'gzip':
-                import gzip
-                html_content = gzip.decompress(html_content)
-            html_content = html_content.decode('utf-8', errors='ignore')
+            html = response.read().decode('utf-8', errors='ignore')
         
-        print(f"Page récupérée: {len(html_content)} caractères")
+        print(f"Page récupérée: {len(html)} caractères")
         
-        # Extraire les informations de sous-titres depuis le HTML
-        caption_tracks = extract_caption_tracks(html_content)
+        # Chercher les pistes de sous-titres avec plusieurs patterns
+        patterns = [
+            r'"captionTracks":\s*(\[[^\]]+\])',
+            r'"captions":\s*\{[^}]*"captionTracks":\s*(\[[^\]]+\])',
+            r'"playerCaptionsTracklistRenderer":\s*\{[^}]*"captionTracks":\s*(\[[^\]]+\])'
+        ]
         
-        if not caption_tracks:
+        tracks = None
+        for pattern in patterns:
+            match = re.search(pattern, html)
+            if match:
+                try:
+                    tracks = json.loads(match.group(1))
+                    print(f"Pistes trouvées: {len(tracks)}")
+                    break
+                except json.JSONDecodeError:
+                    continue
+        
+        if not tracks:
             print("Aucune piste de sous-titres trouvée")
             return None
         
-        print(f"Pistes trouvées: {len(caption_tracks)}")
-        
-        # Trouver la piste dans la langue demandée ou en anglais par défaut
-        selected_track = find_best_track(caption_tracks, language)
+        # Trouver la meilleure piste
+        selected_track = find_best_track(tracks, language)
         
         if not selected_track:
             print("Aucune piste appropriée trouvée")
@@ -170,133 +142,69 @@ def extract_youtube_subtitles(video_id, language='fr'):
         print(f"Piste sélectionnée: {selected_track.get('languageCode', 'unknown')}")
         
         # Télécharger les sous-titres
-        return download_subtitle_track(selected_track)
-        
-    except (URLError, HTTPError) as e:
-        print(f"Erreur HTTP lors de l'extraction: {str(e)}")
-        return None
-    except Exception as e:
-        print(f"Erreur lors de l'extraction des sous-titres: {str(e)}")
-        return None
-
-
-def extract_caption_tracks(html_content):
-    """
-    Extraire les pistes de sous-titres depuis le HTML de la page YouTube
-    """
-    try:
-        # Pattern pour trouver les données de sous-titres dans le JavaScript
-        patterns = [
-            r'"captions":\s*(\{[^}]*?"captionTracks":\s*\[[^\]]+\][^}]*\})',
-            r'"playerCaptionsTracklistRenderer":\s*(\{[^}]*?"captionTracks":\s*\[[^\]]+\][^}]*\})',
-            r'captionTracks["\']:\s*(\[[^\]]+\])'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, html_content)
-            if match:
-                print(f"Pattern trouvé: {pattern}")
-                try:
-                    if 'captionTracks' in match.group(1):
-                        captions_data = json.loads(match.group(1))
-                        return captions_data.get('captionTracks', [])
-                    else:
-                        # Direct array
-                        return json.loads(match.group(1))
-                except json.JSONDecodeError as e:
-                    print(f"Erreur JSON pour pattern {pattern}: {e}")
-                    continue
-        
-        print("Aucun pattern de sous-titres trouvé")
-        return None
+        return download_captions(selected_track.get('baseUrl'))
         
     except Exception as e:
-        print(f"Erreur lors de l'extraction des pistes: {str(e)}")
+        print(f"Erreur extraction: {e}")
         return None
 
 
-def find_best_track(caption_tracks, preferred_language):
-    """
-    Trouver la meilleure piste de sous-titres selon la langue préférée
-    """
-    if not caption_tracks:
+def find_best_track(tracks, language):
+    """Trouver la meilleure piste de sous-titres"""
+    if not tracks:
         return None
     
-    print(f"Recherche langue: {preferred_language}")
-    print(f"Langues disponibles: {[track.get('languageCode', 'unknown') for track in caption_tracks]}")
+    print(f"Langues disponibles: {[t.get('languageCode', 'unknown') for t in tracks]}")
     
-    # Essayer de trouver la langue préférée
-    for track in caption_tracks:
-        if track.get('languageCode') == preferred_language:
-            print(f"Langue trouvée: {preferred_language}")
+    # Langue préférée
+    for track in tracks:
+        if track.get('languageCode') == language:
             return track
     
-    # Fallback vers l'anglais
-    for track in caption_tracks:
+    # Fallback anglais
+    for track in tracks:
         if track.get('languageCode') == 'en':
-            print("Fallback vers l'anglais")
             return track
     
-    # Prendre la première piste disponible
-    print("Prise de la première piste disponible")
-    return caption_tracks[0] if caption_tracks else None
+    # Première piste disponible
+    return tracks[0] if tracks else None
 
 
-def download_subtitle_track(track):
-    """
-    Télécharger le contenu d'une piste de sous-titres
-    """
+def download_captions(base_url):
+    """Télécharger et parser les sous-titres"""
+    if not base_url:
+        print("Pas de baseUrl")
+        return None
+    
     try:
-        base_url = track.get('baseUrl')
-        if not base_url:
-            print("Pas de baseUrl dans la piste")
-            return None
-        
         print(f"Téléchargement depuis: {base_url}")
         
-        # Headers pour la requête
-        headers_subtitle = {
+        headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,*/*;q=0.5',
-            'Accept-Language': 'en-US,en;q=0.5'
+            'Accept': 'text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,*/*;q=0.5'
         }
         
-        # Créer la requête
-        req = urllib.request.Request(base_url, headers=headers_subtitle)
+        req = urllib.request.Request(base_url, headers=headers)
         
-        # Télécharger les sous-titres
         with urllib.request.urlopen(req, timeout=20) as response:
-            subtitle_content = response.read().decode('utf-8', errors='ignore')
+            xml_content = response.read().decode('utf-8', errors='ignore')
         
-        print(f"Contenu téléchargé: {len(subtitle_content)} caractères")
+        print(f"Contenu téléchargé: {len(xml_content)} caractères")
         
-        # Parser les sous-titres XML
-        return parse_subtitle_xml(subtitle_content)
-        
-    except Exception as e:
-        print(f"Erreur lors du téléchargement des sous-titres: {str(e)}")
-        return None
-
-
-def parse_subtitle_xml(xml_content):
-    """
-    Parser le contenu XML des sous-titres YouTube
-    """
-    try:
-        # Pattern pour extraire les segments de texte avec timing
-        pattern = r'<text start="([^"]+)"(?:\s+dur="([^"]+)")?>([^<]+)</text>'
-        matches = re.findall(pattern, xml_content)
+        # Parser XML
+        text_pattern = r'<text start="([^"]+)"(?:\s+dur="([^"]+)")?>([^<]*)</text>'
+        matches = re.findall(text_pattern, xml_content)
         
         print(f"Segments trouvés: {len(matches)}")
         
         subtitles = []
+        
         for start, duration, text in matches:
             try:
                 start_time = float(start)
                 dur_time = float(duration) if duration else 3.0
                 
-                # Nettoyer le texte
-                clean_text = clean_subtitle_text(text)
+                clean_text = clean_text_content(text)
                 
                 if clean_text:
                     subtitles.append({
@@ -304,57 +212,52 @@ def parse_subtitle_xml(xml_content):
                         'duration': dur_time,
                         'text': clean_text
                     })
-            except ValueError as e:
-                print(f"Erreur parsing segment: {e}")
+            except ValueError:
                 continue
         
         print(f"Sous-titres parsés: {len(subtitles)}")
         return subtitles
         
     except Exception as e:
-        print(f"Erreur lors du parsing XML: {str(e)}")
+        print(f"Erreur téléchargement: {e}")
         return None
 
 
-def clean_subtitle_text(text):
-    """
-    Nettoyer le texte des sous-titres
-    """
+def clean_text_content(text):
+    """Nettoyer le texte des sous-titres"""
     if not text:
         return ''
     
-    # Décoder les entités HTML
+    # Entités HTML
     text = text.replace('&amp;', '&')
     text = text.replace('&lt;', '<')
     text = text.replace('&gt;', '>')
     text = text.replace('&quot;', '"')
     text = text.replace('&#39;', "'")
     
-    # Supprimer les balises HTML restantes
+    # Balises HTML
     text = re.sub(r'<[^>]+>', '', text)
     
-    # Nettoyer les espaces
+    # Espaces multiples
     text = ' '.join(text.split())
     
     return text.strip()
 
 
-def format_subtitles(subtitles_data, format_type):
-    """
-    Formater les sous-titres selon le type demandé
-    """
-    if not subtitles_data:
+def format_output(subtitles, format_type):
+    """Formater la sortie selon le type demandé"""
+    if not subtitles:
         return ''
     
     if format_type == 'json':
-        return json.dumps(subtitles_data, ensure_ascii=False, indent=2)
+        return json.dumps(subtitles, ensure_ascii=False, indent=2)
     
     elif format_type == 'txt':
-        return '\n'.join([item['text'] for item in subtitles_data])
+        return '\n'.join([item['text'] for item in subtitles])
     
     elif format_type == 'srt':
         srt_content = []
-        for i, item in enumerate(subtitles_data, 1):
+        for i, item in enumerate(subtitles, 1):
             start_time = seconds_to_srt_time(item['start'])
             end_time = seconds_to_srt_time(item['start'] + item['duration'])
             
@@ -368,7 +271,7 @@ def format_subtitles(subtitles_data, format_type):
     elif format_type == 'vtt':
         vtt_content = ["WEBVTT", ""]
         
-        for item in subtitles_data:
+        for item in subtitles:
             start_time = seconds_to_vtt_time(item['start'])
             end_time = seconds_to_vtt_time(item['start'] + item['duration'])
             
@@ -379,13 +282,11 @@ def format_subtitles(subtitles_data, format_type):
         return '\n'.join(vtt_content)
     
     else:
-        return '\n'.join([item['text'] for item in subtitles_data])
+        return '\n'.join([item['text'] for item in subtitles])
 
 
 def seconds_to_srt_time(seconds):
-    """
-    Convertir les secondes au format SRT (HH:MM:SS,mmm)
-    """
+    """Convertir les secondes au format SRT (HH:MM:SS,mmm)"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -395,9 +296,7 @@ def seconds_to_srt_time(seconds):
 
 
 def seconds_to_vtt_time(seconds):
-    """
-    Convertir les secondes au format VTT (HH:MM:SS.mmm)
-    """
+    """Convertir les secondes au format VTT (HH:MM:SS.mmm)"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -406,7 +305,7 @@ def seconds_to_vtt_time(seconds):
     return f"{hours:02d}:{minutes:02d}:{secs:02d}.{milliseconds:03d}"
 
 
-# Point d'entrée pour Netlify Functions - IMPORTANT
+# Point d'entrée requis par Netlify
 def main(event, context):
-    """Point d'entrée principal requis par Netlify"""
+    """Point d'entrée alternatif"""
     return handler(event, context)

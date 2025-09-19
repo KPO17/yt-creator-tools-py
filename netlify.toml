@@ -6,6 +6,13 @@
 [build.environment]
   PYTHON_VERSION = "3.9"
 
+# Configuration des fonctions Python
+[functions]
+  directory = "netlify/functions"
+
+[functions."subtitles"]
+  runtime = "python3.9"
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
@@ -15,16 +22,3 @@
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Configuration globale des fonctions
-[functions]
-  directory = "netlify/functions"
-
-# Configuration spécifique pour Python
-[functions."*"]
-  runtime = "python3.9"
-[functions]
-  directory = "netlify/functions"
-
-[functions."subtitles"]
-  runtime = "python3.9"
