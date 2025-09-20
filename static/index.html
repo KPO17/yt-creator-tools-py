@@ -11,6 +11,10 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -78,7 +82,7 @@
             font-size: 1.1em;
         }
         
-        /* Auth Section Simplifiée */
+        /* Auth Section */
         .auth-section {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
@@ -87,13 +91,13 @@
             margin-bottom: 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
         }
         
         .user-info {
-            display: none;
+            display: flex;
             align-items: center;
             gap: 15px;
         }
@@ -109,10 +113,51 @@
             font-weight: bold;
         }
         
-        .auth-message {
-            text-align: center;
-            font-size: 1.1em;
-            opacity: 0.8;
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-auth {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .btn-register {
+            background: transparent;
+            border: 2px solid #FF0000;
+            color: white;
+        }
+        
+        .btn-logout {
+            background: rgba(255, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .btn-google {
+            background: white;
+            color: #333;
+            border: 2px solid #4285f4;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-google:hover {
+            background: #f8f9fa;
+            border-color: #3367d6;
         }
         
         .input-section {
@@ -136,7 +181,7 @@
             font-size: 1.1em;
         }
         
-        input[type="url"] {
+        input[type="url"], input[type="email"], input[type="password"] {
             width: 100%;
             padding: 15px 20px;
             border: 2px solid rgba(255, 255, 255, 0.2);
@@ -395,6 +440,169 @@
             margin: 0 auto 15px;
         }
         
+        .social-links {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .social-links h3 {
+            margin-bottom: 15px;
+            color: #FF6B6B;
+        }
+        
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .social-icon {
+            display: inline-block;
+            padding: 15px;
+            border-radius: 50%;
+            color: white;
+            text-decoration: none;
+            font-size: 1.5em;
+            transition: all 0.3s ease;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .social-icon.youtube { background: #FF0000; }
+        .social-icon.twitter { background: #1DA1F2; }
+        .social-icon.instagram { background: linear-gradient(45deg, #E4405F, #833AB4); }
+        .social-icon.tiktok { background: #000000; }
+        
+        .social-icon:hover {
+            transform: translateY(-5px) scale(1.1);
+        }
+        
+        /* Modal pour les pubs popup */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ad-header {
+            background: #FF0000;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .ad-content {
+            padding: 40px;
+            text-align: center;
+            color: #333;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+        }
+        
+        .close-ad {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* Auth Modal */
+        .auth-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .auth-modal-content {
+            background: linear-gradient(135deg, #FF0000 0%, #282828 50%, #000000 100%);
+            margin: 5% auto;
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+        }
+        
+        .close-auth {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -20px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            border: none;
+            margin: 0 5px;
+            border-radius: 10px;
+        }
+        
+        .auth-tab.active {
+            background: #FF0000;
+            color: white;
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -407,6 +615,26 @@
         @media (max-width: 768px) {
             .thumbnails-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            .social-icons {
+                gap: 10px;
+            }
+            
+            .social-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+            
+            .auth-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .auth-buttons {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -426,7 +654,7 @@
             </div>
         </div>
         
-        <!-- Section d'authentification simplifiée -->
+        <!-- Section d'authentification -->
         <div class="auth-section">
             <div class="user-info" id="user-info" style="display: none;">
                 <div class="user-avatar" id="user-avatar">U</div>
@@ -434,11 +662,19 @@
                     <div id="user-name">Utilisateur connecté</div>
                     <div style="font-size: 0.8em; opacity: 0.7;" id="user-email"></div>
                 </div>
-                <button class="btn-auth btn-logout" onclick="logout()" style="margin-left: auto;">Déconnexion</button>
             </div>
 
-            <div id="auth-message" class="auth-message">
-                Mode sans authentification - Toutes les fonctionnalités sont disponibles
+            <div class="auth-buttons" id="auth-buttons">
+                <button class="btn-auth btn-login" onclick="openAuthModal('login')">Se connecter</button>
+                <button class="btn-auth btn-register" onclick="openAuthModal('register')">S'inscrire</button>
+                <!-- Bouton Google -->
+                <button class="btn-auth btn-google" onclick="signInWithGoogle()">
+                    <span>🔴</span> Continuer avec Google
+                </button>
+            </div>
+
+            <div id="logged-in-actions" style="display: none;">
+                <button class="btn-auth btn-logout" onclick="logout()">Se déconnecter</button>
             </div>
         </div>
         
@@ -499,7 +735,12 @@
             <div class="subtitles-section">
                 <h2 class="section-title">📝 Sous-titres et Scripts</h2>
                 <div id="subtitles-content">
-                    <div id="subtitles-available">
+                    <div class="premium-feature locked" id="subtitles-locked">
+                        <div class="lock-icon">🔒</div>
+                        <h3>Fonctionnalité Premium</h3>
+                        <p>Connectez-vous pour accéder au téléchargement des sous-titres</p>
+                    </div>
+                    <div id="subtitles-available" style="display: none;">
                         <div style="margin-bottom: 15px; opacity: 0.8;">
                             <strong>Formats disponibles :</strong>
                         </div>
@@ -519,10 +760,410 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Réseaux sociaux -->
+        <div class="social-links">
+            <h3>📱 Suivez-nous</h3>
+            <div class="social-icons">
+                <a href="https://youtube.com/@yourchannel" class="social-icon youtube" title="YouTube">📺</a>
+                <a href="https://twitter.com/yourtwitter" class="social-icon twitter" title="Twitter">🦅</a>
+                <a href="https://instagram.com/yourinsta" class="social-icon instagram" title="Instagram">📷</a>
+                <a href="https://tiktok.com/@yourtiktok" class="social-icon tiktok" title="TikTok">🎵</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'authentification -->
+    <div id="auth-modal" class="auth-modal">
+        <div class="auth-modal-content">
+            <span class="close-auth" onclick="closeAuthModal()">&times;</span>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">Inscription</button>
+            </div>
+            
+            <form class="auth-form active" id="login-form">
+                <h2 style="margin-bottom: 20px; color: white;">Se connecter</h2>
+                
+                <!-- Bouton Google dans la modale -->
+                <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
+                    <span>🔴</span> Continuer avec Google
+                </button>
+                
+                <div style="text-align: center; margin: 20px 0; opacity: 0.6;">
+                    ou avec votre email
+                </div>
+                
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Mot de passe" required>
+                <button type="submit" class="btn btn-primary">Se connecter</button>
+            </form>
+                        
+            <form class="auth-form" id="register-form">
+                <h2 style="margin-bottom: 20px; color: white;">S'inscrire</h2>
+                
+                <!-- Bouton Google dans la modale -->
+                <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
+                    <span>🔴</span> Créer un compte avec Google
+                </button>
+                
+                <div style="text-align: center; margin: 20px 0; opacity: 0.6;">
+                    ou avec votre email
+                </div>
+                
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Mot de passe (6+ caractères)" required>
+                <input type="password" id="register-confirm" placeholder="Confirmer le mot de passe" required>
+                <button type="submit" class="btn btn-primary">S'inscrire</button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal publicitaire -->
+    <div id="ad-modal" class="modal">
+        <div class="modal-content">
+            <div class="ad-header">
+                📺 Publicité
+                <button class="close-ad" onclick="closeAdModal()">&times;</button>
+            </div>
+            <div class="ad-content">
+                <div>
+                    <h3>Espace publicitaire</h3>
+                    <p>Configurez vos annonces Google AdSense ici</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Configuration Firebase avec gestion d'erreur
+        let auth = null;
+        let googleProvider = null;
+        let currentUser = null;
         let currentVideoData = null;
+
+        // Initialisation Firebase avec gestion d'erreur
+        try {
+            const firebaseConfig = {
+                apiKey: "AIzaSyCDmA8R6tNDSQ01XBcs_fgSf2-P9G0TQ5k",
+                authDomain: "yt-creator-tools.firebaseapp.com",
+                projectId: "yt-creator-tools",
+                storageBucket: "yt-creator-tools.appspot.com",
+                messagingSenderId: "1056409341689",
+                appId: "1:1056409341689:web:abc123def456"
+            };
+
+            // Initialiser Firebase de manière sécurisée
+            if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                googleProvider = new firebase.auth.GoogleAuthProvider();
+                googleProvider.addScope('email');
+                googleProvider.addScope('profile');
+                
+                console.log('Firebase initialisé avec succès');
+                
+                // Observer l'état d'authentification
+                auth.onAuthStateChanged((user) => {
+                    console.log('État auth changé:', user ? 'connecté' : 'déconnecté');
+                    currentUser = user;
+                    updateAuthUI();
+                    
+                    if (user && !user.emailVerified && !isGoogleUser(user)) {
+                        showError('Veuillez vérifier votre email avant d\'accéder aux fonctionnalités premium');
+                        startEmailVerificationCheck();
+                    }
+                });
+            } else {
+                console.warn('Firebase non disponible, fonctionnement en mode dégradé');
+            }
+            
+        } catch (error) {
+            console.error('Erreur initialisation Firebase:', error);
+            // L'application continue de fonctionner sans Firebase
+        }
+
+        // Fonctions Firebase avec gestion d'erreur
+        async function signInWithGoogle() {
+            if (!auth || !googleProvider) {
+                showError('Authentification non disponible');
+                return;
+            }
+            
+            try {
+                showLoading(true);
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                
+                console.log('Google Sign-In réussi:', user.email);
+                closeAuthModal();
+                showSuccess('Connexion Google réussie !');
+                
+                if (result.additionalUserInfo && result.additionalUserInfo.isNewUser) {
+                    showSuccess('Compte créé avec Google ! Bienvenue !');
+                }
+                
+            } catch (error) {
+                console.error('Erreur Google Sign-In:', error);
+                
+                let message = 'Erreur de connexion Google';
+                switch (error.code) {
+                    case 'auth/popup-closed-by-user':
+                        message = 'Connexion annulée';
+                        break;
+                    case 'auth/popup-blocked':
+                        message = 'Popup bloquée par le navigateur';
+                        break;
+                    case 'auth/account-exists-with-different-credential':
+                        message = 'Un compte existe déjà avec cet email';
+                        break;
+                    case 'auth/cancelled-popup-request':
+                        message = 'Connexion annulée';
+                        break;
+                    default:
+                        message = `Erreur Google : ${error.message}`;
+                }
+                
+                showError(message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Auth Modal Functions
+        function openAuthModal(tab) {
+            document.getElementById('auth-modal').style.display = 'block';
+            switchAuthTab(tab);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').style.display = 'none';
+        }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            document.querySelector(`.auth-tab:${tab === 'login' ? 'first-child' : 'last-child'}`).classList.add('active');
+            document.getElementById(`${tab}-form`).classList.add('active');
+        }
+
+        // Authentification email/mot de passe
+        if (typeof document !== 'undefined') {
+            document.addEventListener('DOMContentLoaded', function() {
+                // Connexion email
+                const loginForm = document.getElementById('login-form');
+                if (loginForm) {
+                    loginForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        
+                        if (!auth) {
+                            showError('Authentification non disponible');
+                            return;
+                        }
+                        
+                        const email = document.getElementById('login-email').value;
+                        const password = document.getElementById('login-password').value;
+                        
+                        try {
+                            showLoading(true);
+                            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                            
+                            if (!userCredential.user.emailVerified) {
+                                showError('Email non vérifié. Vérifiez votre boîte mail');
+                                if (confirm('Voulez-vous recevoir un nouvel email de vérification ?')) {
+                                    await userCredential.user.sendEmailVerification();
+                                    showSuccess('Email de vérification envoyé !');
+                                }
+                                return;
+                            }
+                            
+                            closeAuthModal();
+                            showSuccess('Connexion réussie !');
+                            document.getElementById('login-email').value = '';
+                            document.getElementById('login-password').value = '';
+                            
+                        } catch (error) {
+                            console.error('Erreur connexion:', error);
+                            let message = 'Erreur de connexion';
+                            
+                            switch (error.code) {
+                                case 'auth/user-not-found':
+                                    message = 'Aucun compte trouvé avec cet email';
+                                    break;
+                                case 'auth/wrong-password':
+                                    message = 'Mot de passe incorrect';
+                                    break;
+                                case 'auth/invalid-email':
+                                    message = 'Email invalide';
+                                    break;
+                                case 'auth/too-many-requests':
+                                    message = 'Trop de tentatives. Réessayez plus tard';
+                                    break;
+                                default:
+                                    message = `Erreur : ${error.message}`;
+                            }
+                            
+                            showError(message);
+                        } finally {
+                            showLoading(false);
+                        }
+                    });
+                }
+
+                // Inscription email
+                const registerForm = document.getElementById('register-form');
+                if (registerForm) {
+                    registerForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        
+                        if (!auth) {
+                            showError('Authentification non disponible');
+                            return;
+                        }
+                        
+                        const email = document.getElementById('register-email').value;
+                        const password = document.getElementById('register-password').value;
+                        const confirm = document.getElementById('register-confirm').value;
+                        
+                        if (password !== confirm) {
+                            showError('Les mots de passe ne correspondent pas');
+                            return;
+                        }
+                        
+                        if (password.length < 6) {
+                            showError('Le mot de passe doit contenir au moins 6 caractères');
+                            return;
+                        }
+                        
+                        try {
+                            showLoading(true);
+                            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                            
+                            await userCredential.user.sendEmailVerification({
+                                url: window.location.origin,
+                                handleCodeInApp: false
+                            });
+                            
+                            closeAuthModal();
+                            showSuccess('Inscription réussie ! Vérifiez votre email avant de vous connecter.');
+                            
+                            await auth.signOut();
+                            
+                            document.getElementById('register-email').value = '';
+                            document.getElementById('register-password').value = '';
+                            document.getElementById('register-confirm').value = '';
+                            
+                        } catch (error) {
+                            console.error('Erreur inscription:', error);
+                            let message = 'Erreur d\'inscription';
+                            
+                            switch (error.code) {
+                                case 'auth/email-already-in-use':
+                                    message = 'Cet email est déjà utilisé';
+                                    break;
+                                case 'auth/invalid-email':
+                                    message = 'Email invalide';
+                                    break;
+                                case 'auth/weak-password':
+                                    message = 'Mot de passe trop faible';
+                                    break;
+                                default:
+                                    message = `Erreur : ${error.message}`;
+                            }
+                            
+                            showError(message);
+                        } finally {
+                            showLoading(false);
+                        }
+                    });
+                }
+            });
+        }
+
+        async function logout() {
+            if (!auth) {
+                showSuccess('Déconnexion effectuée');
+                return;
+            }
+            
+            try {
+                await auth.signOut();
+                showSuccess('Déconnexion réussie');
+            } catch (error) {
+                showError('Erreur lors de la déconnexion');
+                console.error(error);
+            }
+        }
+
+        function updateAuthUI() {
+            const userInfo = document.getElementById('user-info');
+            const authButtons = document.getElementById('auth-buttons');
+            const loggedInActions = document.getElementById('logged-in-actions');
+            const subtitlesLocked = document.getElementById('subtitles-locked');
+            const subtitlesAvailable = document.getElementById('subtitles-available');
+
+            if (currentUser && (currentUser.emailVerified || isGoogleUser(currentUser))) {
+                userInfo.style.display = 'flex';
+                authButtons.style.display = 'none';
+                loggedInActions.style.display = 'block';
+                
+                document.getElementById('user-email').textContent = currentUser.email;
+                document.getElementById('user-name').textContent = 
+                    currentUser.displayName || 'Utilisateur vérifié';
+                
+                if (currentUser.photoURL) {
+                    const avatar = document.getElementById('user-avatar');
+                    avatar.innerHTML = `<img src="${currentUser.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                } else {
+                    document.getElementById('user-avatar').textContent = 
+                        currentUser.email.charAt(0).toUpperCase();
+                }
+                
+                if (subtitlesLocked) subtitlesLocked.style.display = 'none';
+                if (subtitlesAvailable) subtitlesAvailable.style.display = 'block';
+                
+            } else {
+                userInfo.style.display = 'none';
+                authButtons.style.display = 'flex';
+                loggedInActions.style.display = 'none';
+                
+                if (subtitlesLocked) subtitlesLocked.style.display = 'block';
+                if (subtitlesAvailable) subtitlesAvailable.style.display = 'none';
+            }
+        }
+
+        function isGoogleUser(user) {
+            if (!user || !user.providerData) return false;
+            return user.providerData.some(provider => provider.providerId === 'google.com');
+        }
+
+        function startEmailVerificationCheck() {
+            if (!currentUser || currentUser.emailVerified) {
+                return;
+            }
+            
+            const checkInterval = setInterval(async () => {
+                try {
+                    await currentUser.reload();
+                    
+                    if (currentUser.emailVerified) {
+                        clearInterval(checkInterval);
+                        showSuccess('Email vérifié avec succès ! Fonctionnalités premium débloquées.');
+                        updateAuthUI();
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification:', error);
+                    clearInterval(checkInterval);
+                }
+            }, 30000);
+            
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, 600000);
+        }
 
         // Fonctions utilitaires
         function getVideoId(url) {
@@ -570,13 +1211,6 @@
             showLoading(true);
             
             try {
-                // Test de connexion au serveur
-                console.log('Test de connexion au serveur...');
-                const testResponse = await fetch('/api/test');
-                const testData = await testResponse.json();
-                console.log('Test API réussi:', testData);
-                
-                // Appel à notre API Flask
                 const response = await fetch('/api/video-info', {
                     method: 'POST',
                     headers: {
@@ -587,50 +1221,38 @@
                     })
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
-                
                 const videoData = await response.json();
-                console.log('Données vidéo reçues:', videoData);
                 
-                if (videoData.error) {
-                    showError(videoData.error);
-                } else {
+                if (response.ok) {
                     displayVideoInfo(videoData);
                     generateThumbnails(videoId);
                     currentVideoData = videoData;
                     document.getElementById('results-section').classList.add('show');
                     showSuccess('Analyse terminée avec succès !');
+                } else {
+                    showError(videoData.error || 'Erreur lors de l\'analyse');
                 }
                 
             } catch (error) {
-                console.error('Erreur complète:', error);
-                showError(`Erreur de connexion: ${error.message}`);
+                showError('Erreur de connexion au serveur');
+                console.error(error);
             } finally {
                 showLoading(false);
             }
         }
 
         function displayVideoInfo(videoData) {
-            const titleElement = document.getElementById('video-title-display');
-            const descElement = document.getElementById('video-description');
-            const tagsContainer = document.getElementById('tags-container');
-            
-            // Nettoyer et afficher le titre
-            titleElement.innerHTML = `
-                ${videoData.title || 'Titre non disponible'}
+            document.getElementById('video-title-display').innerHTML = `
+                ${videoData.title}
                 <button class="copy-btn" onclick="copyText('video-title-display')">Copier</button>
             `;
             
-            // Nettoyer et afficher la description
-            const description = videoData.description || 'Description non disponible';
-            descElement.innerHTML = `
-                ${description.substring(0, 500)}${description.length > 500 ? '...' : ''}
+            document.getElementById('video-description').innerHTML = `
+                ${videoData.description || 'Aucune description disponible'}
                 <button class="copy-btn" onclick="copyText('video-description')">Copier</button>
             `;
             
-            // Afficher les tags
+            const tagsContainer = document.getElementById('tags-container');
             if (videoData.tags && videoData.tags.length > 0) {
                 tagsContainer.innerHTML = videoData.tags.map(tag => 
                     `<span class="tag">#${tag}</span>`
@@ -687,11 +1309,21 @@
             link.click();
             document.body.removeChild(link);
             
+            showAdModal();
             showSuccess('Téléchargement démarré !');
         }
 
-        // Fonction pour télécharger les sous-titres
         async function downloadSubtitles(format) {
+            if (!currentUser) {
+                showError('Connectez-vous pour accéder aux sous-titres');
+                return;
+            }
+            
+            if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
+                showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
+                return;
+            }
+            
             const url = document.getElementById('youtube-url').value.trim();
             const videoId = getVideoId(url);
             
@@ -702,7 +1334,6 @@
             
             try {
                 showLoading(true);
-                console.log(`Téléchargement des sous-titres ${format} pour ${videoId}...`);
                 
                 const response = await fetch('/api/subtitles', {
                     method: 'POST',
@@ -721,7 +1352,6 @@
                     throw new Error(errorData.error || 'Erreur lors du téléchargement');
                 }
                 
-                // Si c'est un format JSON, traiter comme JSON
                 if (format === 'json') {
                     const data = await response.json();
                     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -737,7 +1367,6 @@
                     
                     URL.revokeObjectURL(downloadUrl);
                 } else {
-                    // Pour les autres formats, traiter comme texte
                     const subtitleContent = await response.text();
                     
                     const blob = new Blob([subtitleContent], { type: 'text/plain; charset=utf-8' });
@@ -754,6 +1383,7 @@
                     URL.revokeObjectURL(downloadUrl);
                 }
                 
+                showAdModal();
                 showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés !`);
                 
             } catch (error) {
@@ -788,9 +1418,13 @@
             });
         }
 
-        // Fonctions factices pour compatibilité
-        function logout() {
-            showSuccess('Fonction de déconnexion non implémentée');
+        // Gestion des modales publicitaires
+        function showAdModal() {
+            document.getElementById('ad-modal').style.display = 'block';
+        }
+
+        function closeAdModal() {
+            document.getElementById('ad-modal').style.display = 'none';
         }
 
         // Gestion du loading
@@ -817,29 +1451,39 @@
             }
         });
 
+        // Fermer les modales en cliquant à l'extérieur
+        window.addEventListener('click', function(event) {
+            const authModal = document.getElementById('auth-modal');
+            const adModal = document.getElementById('ad-modal');
+            
+            if (event.target === authModal) {
+                closeAuthModal();
+            }
+            if (event.target === adModal) {
+                closeAdModal();
+            }
+        });
+
         // Service Worker pour PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/service-worker.js')
                 .then(() => console.log('Service Worker enregistré'))
-                .catch((error) => console.log('Erreur Service Worker:', error));
+                .catch(() => console.log('Erreur Service Worker'));
         }
 
-        // Test de l'API au chargement
-        document.addEventListener('DOMContentLoaded', async function() {
-            try {
-                const response = await fetch('/api/test');
-                const data = await response.json();
-                console.log('API Status:', data);
-                
-                if (data.status === 'OK') {
-                    document.getElementById('auth-message').innerHTML = 
-                        `✅ API opérationnelle ${data.hasYouTubeKey ? '(avec clé YouTube)' : '(mode basique)'}`;
-                }
-            } catch (error) {
-                console.error('Erreur test API:', error);
-                document.getElementById('auth-message').innerHTML = 
-                    '❌ Erreur de connexion au serveur';
-            }
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAuthUI();
+            
+            // Test API au démarrage
+            fetch('/api/test')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API Status:', data);
+                })
+                .catch(error => {
+                    console.error('Erreur test API:', error);
+                });
         });
     </script>
 </body>
