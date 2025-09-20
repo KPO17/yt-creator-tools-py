@@ -1,6 +1,6 @@
 {
   "name": "YT Creator Tools",
-  "short_name": "Creator Tools",
+  "short_name": "YT Tools",
   "description": "Outils professionnels pour créateurs YouTube : métadonnées, miniatures, sous-titres et scripts",
   "version": "2.0.0",
   "start_url": "/",
@@ -13,32 +13,59 @@
   "categories": ["utilities", "productivity", "multimedia", "video"],
   "icons": [
     {
-      "src": "/static/icon-192x192.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%23FF0000'/%3E%3Ctext x='96' y='110' font-family='Arial, sans-serif' font-size='60' font-weight='bold' text-anchor='middle' fill='white'%3EYT%3C/text%3E%3Cpath d='M96 140 L80 150 L80 130 Z' fill='white'/%3E%3C/svg%3E",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/static/icon-512x512.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23FF0000'/%3E%3Ctext x='256' y='290' font-family='Arial, sans-serif' font-size='160' font-weight='bold' text-anchor='middle' fill='white'%3EYT%3C/text%3E%3Cpath d='M256 370 L210 400 L210 340 Z' fill='white'/%3E%3Crect x='40' y='40' width='432' height='432' fill='none' stroke='white' stroke-width='8' rx='50'/%3E%3C/svg%3E",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
       "name": "Analyser vidéo",
       "short_name": "Analyser",
-      "description": "Analyser une vidéo YouTube",
-      "url": "/?action=analyze",
-      "icons": [{ "src": "/static/shortcut-analyze.png", "sizes": "96x96" }]
+      "description": "Analyser une vidéo YouTube rapidement",
+      "url": "/?utm_source=shortcut&action=analyze",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' fill='%234CAF50'/%3E%3Ctext x='48' y='55' font-family='Arial' font-size='40' text-anchor='middle' fill='white'%3E🔍%3C/text%3E%3C/svg%3E",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
       "name": "Télécharger miniatures",
       "short_name": "Miniatures",
-      "description": "Télécharger des miniatures",
-      "url": "/?action=thumbnails",
-      "icons": [{ "src": "/static/shortcut-thumbnails.png", "sizes": "96x96" }]
+      "description": "Télécharger les miniatures d'une vidéo",
+      "url": "/?utm_source=shortcut&action=thumbnails",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' fill='%232196F3'/%3E%3Ctext x='48' y='55' font-family='Arial' font-size='30' text-anchor='middle' fill='white'%3E🖼️%3C/text%3E%3C/svg%3E",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='540' height='720' viewBox='0 0 540 720'%3E%3Crect width='540' height='720' fill='%23000'/%3E%3Crect x='20' y='20' width='500' height='680' fill='%23FF0000' opacity='0.1' rx='20'/%3E%3Ctext x='270' y='100' font-family='Arial' font-size='24' font-weight='bold' text-anchor='middle' fill='white'%3EYT Creator Tools%3C/text%3E%3Crect x='40' y='200' width='460' height='60' fill='white' opacity='0.2' rx='30'/%3E%3Crect x='40' y='300' width='200' height='100' fill='white' opacity='0.1' rx='10'/%3E%3Crect x='260' y='300' width='200' height='100' fill='white' opacity='0.1' rx='10'/%3E%3C/svg%3E",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Interface principale de l'application"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }

@@ -1,9 +1,8 @@
-from flask import Flask, request, jsonify, send_from_directory, render_template_string
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import json
 import re
-from urllib.parse import urlparse, parse_qs
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import SRTFormatter, TextFormatter, WebVTTFormatter
 import logging
@@ -36,8 +35,7 @@ def extract_video_id(url):
 @app.route('/')
 def index():
     """Page d'accueil avec l'interface utilisateur"""
-    with open('static/index.html', 'r', encoding='utf-8') as f:
-        return f.read()
+    return send_from_directory('static', 'index.html')
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -47,20 +45,17 @@ def serve_static(filename):
 @app.route('/privacy_policy.html')
 def privacy_policy():
     """Page de politique de confidentialité"""
-    with open('static/privacy_policy.html', 'r', encoding='utf-8') as f:
-        return f.read()
+    return send_from_directory('static', 'privacy_policy.html')
 
 @app.route('/manifest.json')
 def manifest():
     """Manifeste PWA"""
-    with open('static/manifest.json', 'r', encoding='utf-8') as f:
-        return f.read(), 200, {'Content-Type': 'application/json'}
+    return send_from_directory('static', 'manifest.json')
 
 @app.route('/service-worker.js')
 def service_worker():
     """Service worker"""
-    with open('static/service-worker.js', 'r', encoding='utf-8') as f:
-        return f.read(), 200, {'Content-Type': 'application/javascript'}
+    return send_from_directory('static', 'service-worker.js')
 
 @app.route('/api/test', methods=['GET'])
 def test_api():
@@ -69,7 +64,8 @@ def test_api():
         'status': 'OK',
         'hasYouTubeKey': bool(YOUTUBE_API_KEY),
         'keyLength': len(YOUTUBE_API_KEY) if YOUTUBE_API_KEY else 0,
-        'transcriptApiAvailable': True
+        'transcriptApiAvailable': True,
+        'message': 'API Flask opérationnelle'
     })
 
 @app.route('/api/subtitles', methods=['POST', 'OPTIONS'])
@@ -92,7 +88,6 @@ def get_subtitles():
         
         logger.info(f"Récupération sous-titres pour vidéo: {video_id}, format: {format_type}, langue: {language}")
         
-        # Tentative de récupération des sous-titres
         try:
             # Essayer d'abord la langue demandée
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
@@ -123,17 +118,22 @@ def get_subtitles():
             if format_type == 'srt':
                 formatter = SRTFormatter()
                 content = formatter.format_transcript(transcript_data)
+                content_type = 'application/x-subrip'
             elif format_type == 'vtt':
                 formatter = WebVTTFormatter()
                 content = formatter.format_transcript(transcript_data)
+                content_type = 'text/vtt'
             elif format_type == 'txt':
                 formatter = TextFormatter()
                 content = formatter.format_transcript(transcript_data)
+                content_type = 'text/plain'
             elif format_type == 'json':
                 content = json.dumps(transcript_data, ensure_ascii=False, indent=2)
+                content_type = 'application/json'
             else:
                 # Format brut par défaut
                 content = '\n'.join([f"{entry['start']:.2f}s: {entry['text']}" for entry in transcript_data])
+                content_type = 'text/plain'
             
             # Informations sur les langues disponibles
             available_languages = []
@@ -147,20 +147,18 @@ def get_subtitles():
             except:
                 available_languages = [{'language': actual_language, 'name': actual_language, 'is_generated': False}]
             
-            response_data = {
-                'videoId': video_id,
-                'language': actual_language,
-                'format': format_type,
-                'content': content,
-                'availableLanguages': available_languages,
-                'success': True
-            }
-            
             if format_type == 'json':
-                return jsonify(response_data)
+                return jsonify({
+                    'videoId': video_id,
+                    'language': actual_language,
+                    'format': format_type,
+                    'content': content,
+                    'availableLanguages': available_languages,
+                    'success': True
+                })
             else:
                 return content, 200, {
-                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Content-Type': f'{content_type}; charset=utf-8',
                     'Content-Disposition': f'attachment; filename="{video_id}_subtitles.{format_type}"'
                 }
                 
@@ -223,7 +221,8 @@ def get_video_info():
                 'mqdefault': f'https://img.youtube.com/vi/{video_id}/mqdefault.jpg',
                 'default': f'https://img.youtube.com/vi/{video_id}/default.jpg'
             },
-            'url': f'https://www.youtube.com/watch?v={video_id}'
+            'url': f'https://www.youtube.com/watch?v={video_id}',
+            'tags': ['exemple', 'youtube', 'creator']
         }
         
         # Si on a une clé API, on pourrait récupérer plus d'infos ici
@@ -244,7 +243,7 @@ def get_video_info():
                     video_info.update({
                         'title': snippet.get('title', video_info['title']),
                         'description': snippet.get('description', video_info['description']),
-                        'tags': snippet.get('tags', []),
+                        'tags': snippet.get('tags', video_info['tags']),
                         'channelTitle': snippet.get('channelTitle', ''),
                         'publishedAt': snippet.get('publishedAt', ''),
                         'statistics': item.get('statistics', {})
