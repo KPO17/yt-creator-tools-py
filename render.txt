@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: yt-creator-tools
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: YOUTUBE_API_KEY
+        sync: false  # Vous devrez définir cette variable dans le dashboard Render
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+    healthCheckPath: /api/test

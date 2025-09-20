@@ -1,14 +1,5 @@
-# requirements.txt pour Netlify Functions Python
-# Aucune dépendance externe requise - utilisation des modules Python natifs uniquement
-
-# Les modules utilisés sont tous natifs dans Python 3.9+ :
-# - json (natif)
-# - re (natif)  
-# - urllib.request (natif)
-# - urllib.parse (natif)
-# - urllib.error (natif)
-
-# Si vous souhaitez ajouter des dépendances plus tard :
-# requests==2.31.0
-# beautifulsoup4==4.12.2
-# lxml==4.9.3
+Flask==2.3.3
+Flask-CORS==4.0.0
+youtube-transcript-api==0.6.2
+gunicorn==21.2.0
+Werkzeug==2.3.7

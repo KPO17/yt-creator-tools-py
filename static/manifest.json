@@ -3,23 +3,23 @@
   "short_name": "Creator Tools",
   "description": "Outils professionnels pour créateurs YouTube : métadonnées, miniatures, sous-titres et scripts",
   "version": "2.0.0",
-  "start_url": "https://ytcreatortools.netlify.app/",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#FF0000",
   "background_color": "#000000",
   "lang": "fr",
-  "scope": "https://ytcreatortools.netlify.app/",
+  "scope": "/",
   "categories": ["utilities", "productivity", "multimedia", "video"],
   "icons": [
     {
-      "src": "https://ytcreatortools.netlify.app/icons/icon-192x192.png",
+      "src": "/static/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://ytcreatortools.netlify.app/icons/icon-512x512.png",
+      "src": "/static/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -31,14 +31,14 @@
       "short_name": "Analyser",
       "description": "Analyser une vidéo YouTube",
       "url": "/?action=analyze",
-      "icons": [{ "src": "/icons/shortcut-analyze.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/static/shortcut-analyze.png", "sizes": "96x96" }]
     },
     {
       "name": "Télécharger miniatures",
       "short_name": "Miniatures",
       "description": "Télécharger des miniatures",
       "url": "/?action=thumbnails",
-      "icons": [{ "src": "/icons/shortcut-thumbnails.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/static/shortcut-thumbnails.png", "sizes": "96x96" }]
     }
   ]
 }

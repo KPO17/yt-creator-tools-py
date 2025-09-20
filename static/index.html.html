@@ -1,0 +1,1457 @@
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🎬</div>
+            <h1 class="app-title">YT Creator Tools</h1>
+            <p class="app-subtitle">Outils professionnels pour créateurs YouTube</p>
+        </div>
+        
+        <!-- Zone publicitaire -->
+        <div class="ad-zone" id="main-ad">
+            <div class="ad-placeholder">
+                📺 Espace publicitaire - Configurez Google AdSense
+            </div>
+        </div>
+        
+        <!-- Section d'authentification -->
+        <div class="auth-section">
+            <div class="user-info" id="user-info" style="display: none;">
+                <div class="user-avatar" id="user-avatar">U</div>
+                <div>
+                    <div id="user-name">Utilisateur connecté</div>
+                    <div style="font-size: 0.8em; opacity: 0.7;" id="user-email"></div>
+                </div>
+            </div>
+
+            <div class="auth-buttons" id="auth-buttons">
+                <button class="btn-auth btn-login" onclick="openAuthModal('login')">Se connecter</button>
+                <button class="btn-auth btn-register" onclick="openAuthModal('register')">S'inscrire</button>
+                <!-- Bouton Google -->
+                <button class="btn-auth btn-google" onclick="signInWithGoogle()">
+                    <span>🔴</span> Continuer avec Google
+                </button>
+            </div>
+
+            <div id="logged-in-actions" style="display: none;">
+                <button class="btn-auth btn-logout" onclick="logout()">Se déconnecter</button>
+            </div>
+        </div>
+        
+        <!-- Formulaire principal -->
+        <div class="input-section">
+            <div class="input-group">
+                <label for="youtube-url">🔗 Lien vidéo YouTube</label>
+                <input 
+                    type="url" 
+                    id="youtube-url" 
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    autocomplete="off"
+                >
+            </div>
+            <button class="btn btn-primary" onclick="analyzeVideo()">
+                <span id="btn-text">🚀 Analyser la vidéo</span>
+            </button>
+        </div>
+        
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+        
+        <!-- Zone de chargement -->
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyse en cours...</p>
+        </div>
+        
+        <!-- Résultats -->
+        <div class="results-section" id="results-section">
+            <!-- Informations de la vidéo -->
+            <div class="video-info-card">
+                <h2 class="section-title">📋 Métadonnées de la vidéo</h2>
+                <div class="video-title" id="video-title-display">
+                    Titre de la vidéo
+                    <button class="copy-btn" onclick="copyText('video-title-display')">Copier</button>
+                </div>
+                <div class="video-description" id="video-description">
+                    Description de la vidéo...
+                    <button class="copy-btn" onclick="copyText('video-description')">Copier</button>
+                </div>
+                <div class="video-tags" id="video-tags">
+                    <strong>Tags :</strong>
+                    <div id="tags-container"></div>
+                    <button class="copy-btn" onclick="copyTags()">Copier</button>
+                </div>
+            </div>
+            
+            <!-- Miniatures -->
+            <div class="thumbnails-section">
+                <h2 class="section-title">🖼️ Miniatures</h2>
+                <div class="thumbnails-grid" id="thumbnails-grid">
+                    <!-- Les miniatures seront générées ici -->
+                </div>
+            </div>
+            
+            <!-- Sous-titres -->
+            <div class="subtitles-section">
+                <h2 class="section-title">📝 Sous-titres et Scripts</h2>
+                <div id="subtitles-content">
+                    <div class="premium-feature locked" id="subtitles-locked">
+                        <div class="lock-icon">🔒</div>
+                        <h3>Fonctionnalité Premium</h3>
+                        <p>Connectez-vous pour accéder au téléchargement des sous-titres</p>
+                    </div>
+                    <div id="subtitles-available" style="display: none;">
+                        <div style="margin-bottom: 15px; opacity: 0.8;">
+                            <strong>Formats disponibles :</strong>
+                        </div>
+                        <button class="btn-download" onclick="downloadSubtitles('txt')" style="margin-bottom: 10px;">
+                            📄 Télécharger TXT (Texte brut)
+                        </button>
+                        <button class="btn-download" onclick="downloadSubtitles('srt')" style="margin-bottom: 10px;">
+                            🎬 Télécharger SRT (Sous-titres)
+                        </button>
+                        <button class="btn-download" onclick="downloadSubtitles('vtt')" style="margin-bottom: 10px;">
+                            🌐 Télécharger VTT (Web)
+                        </button>
+                        <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">
+                            ℹ️ Les sous-titres sont extraits directement de YouTube. Certaines vidéos peuvent ne pas avoir de sous-titres disponibles.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Réseaux sociaux -->
+        <div class="social-links">
+            <h3>📱 Suivez-nous</h3>
+            <div class="social-icons">
+                <a href="https://youtube.com/@yourchannel" class="social-icon youtube" title="YouTube">📺</a>
+                <a href="https://twitter.com/yourtwitter" class="social-icon twitter" title="Twitter">🦅</a>
+                <a href="https://instagram.com/yourinsta" class="social-icon instagram" title="Instagram">📷</a>
+                <a href="https://tiktok.com/@yourtiktok" class="social-icon tiktok" title="TikTok">🎵</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'authentification -->
+    <div id="auth-modal" class="auth-modal">
+        <div class="auth-modal-content">
+            <span class="close-auth" onclick="closeAuthModal()">&times;</span>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Connexion</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">Inscription</button>
+            </div>
+            
+            <form class="auth-form active" id="login-form">
+                <h2 style="margin-bottom: 20px; color: white;">Se connecter</h2>
+                
+                <!-- Bouton Google dans la modale -->
+                <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
+                    <span>🔴</span> Continuer avec Google
+                </button>
+                
+                <div style="text-align: center; margin: 20px 0; opacity: 0.6;">
+                    ou avec votre email
+                </div>
+                
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Mot de passe" required>
+                <button type="submit" class="btn btn-primary">Se connecter</button>
+            </form>
+                        
+            <form class="auth-form" id="register-form">
+                <h2 style="margin-bottom: 20px; color: white;">S'inscrire</h2>
+                
+                <!-- Bouton Google dans la modale -->
+                <button type="button" class="btn btn-google" onclick="signInWithGoogle()" style="margin-bottom: 20px;">
+                    <span>🔴</span> Créer un compte avec Google
+                </button>
+                
+                <div style="text-align: center; margin: 20px 0; opacity: 0.6;">
+                    ou avec votre email
+                </div>
+                
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Mot de passe (6+ caractères)" required>
+                <input type="password" id="register-confirm" placeholder="Confirmer le mot de passe" required>
+                <button type="submit" class="btn btn-primary">S'inscrire</button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Modal publicitaire -->
+    <div id="ad-modal" class="modal">
+        <div class="modal-content">
+            <div class="ad-header">
+                📺 Publicité
+                <button class="close-ad" onclick="closeAdModal()">&times;</button>
+            </div>
+            <div class="ad-content">
+                <div>
+                    <h3>Espace publicitaire</h3>
+                    <p>Configurez vos annonces Google AdSense ici</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration Firebase (remplacez par vos vraies clés)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDmA8R6tNDSQ01XBcs_fgSf2-P9G0TQ5k",
+            authDomain: "yt-creator-tools.firebaseapp.com",
+            projectId: "yt-creator-tools",
+            storageBucket: "yt-creator-tools.appspot.com",
+            messagingSenderId: "1056409341689",
+            appId: "yt-creator-tools"
+        };
+
+        // Initialiser Firebase (décommenter quand vous aurez les vraies clés)
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        let currentUser = null;
+        let currentVideoData = null;
+
+        // Observer l'état d'authentification Firebase
+        auth.onAuthStateChanged((user) => {
+            console.log('État auth changé:', user);
+            currentUser = user;
+            updateAuthUI();
+            
+            if (user && !user.emailVerified) {
+                showError('Veuillez vérifier votre email avant d\'accéder aux fonctionnalités premium');
+                startEmailVerificationCheck();
+            }
+        });
+
+        // Configuration Google Auth Provider
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.addScope('email');
+        googleProvider.addScope('profile');
+
+        // FONCTION : Connexion Google
+        async function signInWithGoogle() {
+            try {
+                showLoading(true);
+                
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                
+                console.log('Google Sign-In réussi:', user);
+                
+                closeAuthModal();
+                showSuccess('Connexion Google réussie !');
+                
+                if (result.additionalUserInfo.isNewUser) {
+                    console.log('Nouvel utilisateur Google créé');
+                    showSuccess('Compte créé avec Google ! Bienvenue !');
+                }
+                
+            } catch (error) {
+                console.error('Erreur Google Sign-In:', error);
+                
+                let message = 'Erreur de connexion Google';
+                switch (error.code) {
+                    case 'auth/popup-closed-by-user':
+                        message = 'Connexion annulée';
+                        break;
+                    case 'auth/popup-blocked':
+                        message = 'Popup bloquée par le navigateur';
+                        break;
+                    case 'auth/account-exists-with-different-credential':
+                        message = 'Un compte existe déjà avec cet email';
+                        break;
+                    case 'auth/cancelled-popup-request':
+                        message = 'Connexion annulée';
+                        break;
+                    default:
+                        message = `Erreur Google : ${error.message}`;
+                }
+                
+                showError(message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Auth Modal Functions
+        function openAuthModal(tab) {
+            document.getElementById('auth-modal').style.display = 'block';
+            switchAuthTab(tab);
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').style.display = 'none';
+        }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            document.querySelector(`.auth-tab:${tab === 'login' ? 'first-child' : 'last-child'}`).classList.add('active');
+            document.getElementById(`${tab}-form`).classList.add('active');
+        }
+
+        // Authentification Firebase
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                showLoading(true);
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                
+                if (!userCredential.user.emailVerified) {
+                    showError('Email non vérifié. Vérifiez votre boîte mail ou renvoyez un email de vérification.');
+                    if (confirm('Voulez-vous recevoir un nouvel email de vérification ?')) {
+                        await userCredential.user.sendEmailVerification();
+                        showSuccess('Email de vérification envoyé !');
+                    }
+                    return;
+                }
+                
+                closeAuthModal();
+                showSuccess('Connexion réussie !');
+                document.getElementById('login-email').value = '';
+                document.getElementById('login-password').value = '';
+                
+            } catch (error) {
+                console.error('Erreur connexion:', error);
+                let message = 'Erreur de connexion';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        message = 'Aucun compte trouvé avec cet email';
+                        break;
+                    case 'auth/wrong-password':
+                        message = 'Mot de passe incorrect';
+                        break;
+                    case 'auth/invalid-email':
+                        message = 'Email invalide';
+                        break;
+                    case 'auth/too-many-requests':
+                        message = 'Trop de tentatives. Réessayez plus tard';
+                        break;
+                    default:
+                        message = `Erreur : ${error.message}`;
+                }
+                
+                showError(message);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const confirm = document.getElementById('register-confirm').value;
+            
+            if (password !== confirm) {
+                showError('Les mots de passe ne correspondent pas');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError('Le mot de passe doit contenir au moins 6 caractères');
+                return;
+            }
+            
+            try {
+                showLoading(true);
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                await userCredential.user.sendEmailVerification({
+                    url: window.location.origin,
+                    handleCodeInApp: false
+                });
+                
+                closeAuthModal();
+                showSuccess('Inscription réussie ! Vérifiez votre email avant de vous connecter.');
+                
+                await auth.signOut();
+                
+                document.getElementById('register-email').value = '';
+                document.getElementById('register-password').value = '';
+                document.getElementById('register-confirm').value = '';
+                
+            } catch (error) {
+                console.error('Erreur inscription:', error);
+                let message = 'Erreur d\'inscription';
+                
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        message = 'Cet email est déjà utilisé';
+                        break;
+                    case 'auth/invalid-email':
+                        message = 'Email invalide';
+                        break;
+                    case 'auth/weak-password':
+                        message = 'Mot de passe trop faible';
+                        break;
+                    default:
+                        message = `Erreur : ${error.message}`;
+                }
+                
+                showError(message);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                showSuccess('Déconnexion réussie');
+            } catch (error) {
+                showError('Erreur lors de la déconnexion');
+                console.error(error);
+            }
+        }
+
+        function updateAuthUI() {
+            const userInfo = document.getElementById('user-info');
+            const authButtons = document.getElementById('auth-buttons');
+            const loggedInActions = document.getElementById('logged-in-actions');
+            const subtitlesLocked = document.getElementById('subtitles-locked');
+            const subtitlesAvailable = document.getElementById('subtitles-available');
+
+            if (currentUser && (currentUser.emailVerified || isGoogleUser(currentUser))) {
+                userInfo.style.display = 'flex';
+                authButtons.style.display = 'none';
+                loggedInActions.style.display = 'block';
+                
+                document.getElementById('user-email').textContent = currentUser.email;
+                document.getElementById('user-name').textContent = 
+                    currentUser.displayName || 'Utilisateur vérifié';
+                
+                if (currentUser.photoURL) {
+                    const avatar = document.getElementById('user-avatar');
+                    avatar.innerHTML = `<img src="${currentUser.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                } else {
+                    document.getElementById('user-avatar').textContent = 
+                        currentUser.email.charAt(0).toUpperCase();
+                }
+                
+                if (subtitlesLocked) subtitlesLocked.style.display = 'none';
+                if (subtitlesAvailable) subtitlesAvailable.style.display = 'block';
+                
+            } else {
+                userInfo.style.display = 'none';
+                authButtons.style.display = 'flex';
+                loggedInActions.style.display = 'none';
+                
+                if (subtitlesLocked) subtitlesLocked.style.display = 'block';
+                if (subtitlesAvailable) subtitlesAvailable.style.display = 'none';
+            }
+        }
+
+        function isGoogleUser(user) {
+            if (!user || !user.providerData) return false;
+            return user.providerData.some(provider => provider.providerId === 'google.com');
+        }
+
+        // Fonctions utilitaires
+        function getVideoId(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : null;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.classList.add('show');
+            setTimeout(() => successDiv.classList.remove('show'), 3000);
+        }
+
+        function hideMessages() {
+            document.getElementById('error-message').classList.remove('show');
+            document.getElementById('success-message').classList.remove('show');
+        }
+
+        function startEmailVerificationCheck() {
+            if (!currentUser || currentUser.emailVerified) {
+                return;
+            }
+            
+            const checkInterval = setInterval(async () => {
+                try {
+                    await currentUser.reload();
+                    
+                    if (currentUser.emailVerified) {
+                        clearInterval(checkInterval);
+                        showSuccess('Email vérifié avec succès ! Fonctionnalités premium débloquées.');
+                        updateAuthUI();
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification:', error);
+                    clearInterval(checkInterval);
+                }
+            }, 30000);
+            
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, 600000);
+        }
+
+        // Fonction principale d'analyse - MODIFIÉE pour Flask
+        async function analyzeVideo() {
+            const urlInput = document.getElementById('youtube-url');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                showError('Veuillez entrer un lien YouTube valide');
+                return;
+            }
+            
+            const videoId = getVideoId(url);
+            if (!videoId) {
+                showError('Lien YouTube invalide. Format attendu: https://www.youtube.com/watch?v=...');
+                return;
+            }
+            
+            hideMessages();
+            showLoading(true);
+            
+            try {
+                // Appel à notre API Flask
+                const response = await fetch('/api/video-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url
+                    })
+                });
+                
+                const videoData = await response.json();
+                
+                if (response.ok) {
+                    displayVideoInfo(videoData);
+                    generateThumbnails(videoId);
+                    currentVideoData = videoData;
+                    document.getElementById('results-section').classList.add('show');
+                } else {
+                    showError(videoData.error || 'Erreur lors de l\'analyse');
+                }
+                
+            } catch (error) {
+                showError('Erreur de connexion au serveur');
+                console.error(error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayVideoInfo(videoData) {
+            document.getElementById('video-title-display').innerHTML = `
+                ${videoData.title}
+                <button class="copy-btn" onclick="copyText('video-title-display')">Copier</button>
+            `;
+            
+            document.getElementById('video-description').innerHTML = `
+                ${videoData.description || 'Aucune description disponible'}
+                <button class="copy-btn" onclick="copyText('video-description')">Copier</button>
+            `;
+            
+            const tagsContainer = document.getElementById('tags-container');
+            if (videoData.tags && videoData.tags.length > 0) {
+                tagsContainer.innerHTML = videoData.tags.map(tag => 
+                    `<span class="tag">#${tag}</span>`
+                ).join('');
+            } else {
+                tagsContainer.innerHTML = '<span class="tag">Aucun tag disponible</span>';
+            }
+        }
+
+        function generateThumbnails(videoId) {
+            const thumbnails = [
+                {
+                    quality: 'HD Maxres (1280x720)',
+                    url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+                    filename: `${videoId}_maxres.jpg`
+                },
+                {
+                    quality: 'HD (480x360)',
+                    url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+                    filename: `${videoId}_hq.jpg`
+                },
+                {
+                    quality: 'Standard (320x180)',
+                    url: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+                    filename: `${videoId}_mq.jpg`
+                },
+                {
+                    quality: 'Thumbnail (120x90)',
+                    url: `https://img.youtube.com/vi/${videoId}/default.jpg`,
+                    filename: `${videoId}_default.jpg`
+                }
+            ];
+            
+            const gridDiv = document.getElementById('thumbnails-grid');
+            gridDiv.innerHTML = thumbnails.map(thumb => `
+                <div class="thumbnail-item">
+                    <div class="thumbnail-quality">${thumb.quality}</div>
+                    <img src="${thumb.url}" alt="Thumbnail ${thumb.quality}" class="thumbnail-img" 
+                         onerror="this.parentElement.style.opacity='0.5'; this.parentElement.querySelector('.btn-download').disabled=true;">
+                    <button class="btn-download" onclick="downloadThumbnail('${thumb.url}', '${thumb.filename}')">
+                        📥 Télécharger
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function downloadThumbnail(url, filename) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.target = '_blank';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAdModal();
+            showSuccess('Téléchargement démarré !');
+        }
+
+        // NOUVELLE fonction pour télécharger les sous-titres via Flask
+        async function downloadSubtitles(format) {
+            if (!currentUser) {
+                showError('Connectez-vous pour accéder aux sous-titres');
+                return;
+            }
+            
+            if (!currentUser.emailVerified && !isGoogleUser(currentUser)) {
+                showError('Vérifiez votre email ou connectez-vous avec Google pour accéder aux fonctionnalités premium');
+                return;
+            }
+            
+            const url = document.getElementById('youtube-url').value.trim();
+            const videoId = getVideoId(url);
+            
+            if (!videoId) {
+                showError('Aucune vidéo sélectionnée');
+                return;
+            }
+            
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/api/subtitles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        videoId: videoId,
+                        format: format,
+                        language: 'fr'
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Erreur lors du téléchargement');
+                }
+                
+                // Si c'est un format JSON, traiter comme JSON
+                if (format === 'json') {
+                    const data = await response.json();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const downloadUrl = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = `${videoId}_subtitles.json`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    URL.revokeObjectURL(downloadUrl);
+                } else {
+                    // Pour les autres formats (txt, srt, vtt), traiter comme texte
+                    const subtitleContent = await response.text();
+                    
+                    const blob = new Blob([subtitleContent], { type: 'text/plain; charset=utf-8' });
+                    const downloadUrl = URL.createObjectURL(blob);
+                    
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = `${videoId}_subtitles.${format}`;
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    URL.revokeObjectURL(downloadUrl);
+                }
+                
+                showAdModal();
+                showSuccess(`Sous-titres ${format.toUpperCase()} téléchargés !`);
+                
+            } catch (error) {
+                console.error('Erreur téléchargement sous-titres:', error);
+                showError(error.message || 'Erreur lors du téléchargement des sous-titres');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Fonctions de copie
+        function copyText(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent.replace('Copier', '').trim();
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showSuccess('Texte copié !');
+            }).catch(() => {
+                showError('Erreur lors de la copie');
+            });
+        }
+
+        function copyTags() {
+            const tags = Array.from(document.querySelectorAll('.tag'))
+                .map(tag => tag.textContent)
+                .join(', ');
+            
+            navigator.clipboard.writeText(tags).then(() => {
+                showSuccess('Tags copiés !');
+            }).catch(() => {
+                showError('Erreur lors de la copie');
+            });
+        }
+
+        // Gestion des modales publicitaires
+        function showAdModal() {
+            document.getElementById('ad-modal').style.display = 'block';
+        }
+
+        function closeAdModal() {
+            document.getElementById('ad-modal').style.display = 'none';
+        }
+
+        // Gestion du loading
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const btn = document.querySelector('.btn-primary');
+            const btnText = document.getElementById('btn-text');
+            
+            if (show) {
+                loading.style.display = 'block';
+                btn.disabled = true;
+                btnText.textContent = '🔄 Analyse en cours...';
+            } else {
+                loading.style.display = 'none';
+                btn.disabled = false;
+                btnText.textContent = '🚀 Analyser la vidéo';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('youtube-url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                analyzeVideo();
+            }
+        });
+
+        // Fermer les modales en cliquant à l'extérieur
+        window.addEventListener('click', function(event) {
+            const authModal = document.getElementById('auth-modal');
+            const adModal = document.getElementById('ad-modal');
+            
+            if (event.target === authModal) {
+                closeAuthModal();
+            }
+            if (event.target === adModal) {
+                closeAdModal();
+            }
+        });
+
+        // Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(() => console.log('Service Worker enregistré'))
+                .catch(() => console.log('Erreur Service Worker'));
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAuthUI();
+        });
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Creator Tools</title>
+    <meta name="theme-color" content="#FF0000">
+    <meta name="description" content="Outils complets pour créateurs YouTube : métadonnées, miniatures, sous-titres et plus">
+    <meta name="keywords" content="youtube, creator tools, thumbnails, subtitles, metadata, youtube api">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #FF0000 0%, #282828 50%, #000000 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+        
+        .logo {
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #FF0000, #FF6B6B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .app-title {
+            font-size: 2.2em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .app-subtitle {
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+        
+        /* Zone publicitaire */
+        .ad-zone {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ad-placeholder {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.1em;
+        }
+        
+        /* Auth Section */
+        .auth-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #FF0000, #FF6B6B);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-auth {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-login {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+        
+        .btn-register {
+            background: transparent;
+            border: 2px solid #FF0000;
+            color: white;
+        }
+        
+        .btn-logout {
+            background: rgba(255, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .input-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #fff;
+            font-size: 1.1em;
+        }
+        
+        input[type="url"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            border-color: #FF0000;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+        
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #FF0000, #FF6B6B);
+            color: white;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 0, 0, 0.6);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .results-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .results-section.show {
+            display: block;
+        }
+        
+        .video-info-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .video-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            line-height: 1.4;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #FF0000;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #FF0000;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            padding: 5px 10px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+        
+        .video-description {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            position: relative;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .video-tags {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #2196F3;
+        }
+        
+        .tag {
+            display: inline-block;
+            background: rgba(33, 150, 243, 0.3);
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+        
+        .thumbnails-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #FF6B6B;
+            text-align: center;
+        }
+        
+        .thumbnails-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .thumbnail-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .thumbnail-quality {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #FF6B6B;
+        }
+        
+        .thumbnail-img {
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-download {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        
+        .subtitles-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .premium-feature {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #000;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .premium-feature.locked {
+            opacity: 0.7;
+            position: relative;
+        }
+        
+        .lock-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .error-message {
+            background: rgba(255, 59, 48, 0.2);
+            border: 1px solid rgba(255, 59, 48, 0.5);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .success-message {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-left-color: #FF0000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        .social-links {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .social-links h3 {
+            margin-bottom: 15px;
+            color: #FF6B6B;
+        }
+        
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .social-icon {
+            display: inline-block;
+            padding: 15px;
+            border-radius: 50%;
+            color: white;
+            text-decoration: none;
+            font-size: 1.5em;
+            transition: all 0.3s ease;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .social-icon.youtube { background: #FF0000; }
+        .social-icon.twitter { background: #1DA1F2; }
+        .social-icon.instagram { background: linear-gradient(45deg, #E4405F, #833AB4); }
+        .social-icon.tiktok { background: #000000; }
+        
+        .social-icon:hover {
+            transform: translateY(-5px) scale(1.1);
+        }
+        
+        /* Modal pour les pubs popup */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ad-header {
+            background: #FF0000;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .ad-content {
+            padding: 40px;
+            text-align: center;
+            color: #333;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+        }
+        
+        .close-ad {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Auth Modal */
+        .auth-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        
+        .auth-modal-content {
+            background: linear-gradient(135deg, #FF0000 0%, #282828 50%, #000000 100%);
+            margin: 5% auto;
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+        }
+        
+        .close-auth {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -20px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            border: none;
+            margin: 0 5px;
+            border-radius: 10px;
+        }
+        
+        .auth-tab.active {
+            background: #FF0000;
+            color: white;
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+
+        .btn-google {
+            background: white;
+            color: #333;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .btn-google:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-auth.btn-google {
+            background: white;
+            color: #333;
+            border: 2px solid #4285f4;
+            font-weight: 600;
+        }
+
+        .btn-auth.btn-google:hover {
+            background: #f8f9fa;
+            border-color: #3367d6;
+        }
+        
+        @media (max-width: 768px) {
+            .thumbnails-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .social-icons {
+                gap: 10px;
+            }
+            
+            .social-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+            
+            .auth-section {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .auth-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
