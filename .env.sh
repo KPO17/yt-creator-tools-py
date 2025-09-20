@@ -3,7 +3,7 @@ FLASK_ENV=development
 PORT=5000
 
 # YouTube API Key (optionnel, pour métadonnées complètes)
-YOUTUBE_API_KEY=votre_cle_api_youtube_ici
+YOUTUBE_API_KEY=AIzaSyA4T9faYdV6U3kdNpjEdXtVfz3jXtsJILQ
 
 # Configuration Firebase (optionnel, pour l'authentification)
 FIREBASE_PROJECT_ID=votre_project_id
